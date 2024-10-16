@@ -7,6 +7,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
+import pandas as pd
 
 # Function to compute adaptive alpha based on the velocity and noise
 def alpha(Tmax, v, sig_v, fps, dt):
@@ -15,15 +16,17 @@ def alpha(Tmax, v, sig_v, fps, dt):
     return 1 - np.exp(-dt * invTc)  # Exponential smoothing with time constant Tc
 
 # EWMA with adaptive smoothing and velocity noise estimation
-def ewma_smoothing(x, Ts, Tmax, fps, initial_ex=0.0, initial_ev=0.0, initial_sig_v=1.0):
-    ex = initial_ex  # Smoothed variable
-    ev = initial_ev  # Smoothed velocity
+def ewma_smoothing(x, Ts, Tmax, fps, initial_sig_v=0.2):
+    ex = x[0]  # Smoothed variable
+    ev = 0  # Smoothed velocity
     sig_v = initial_sig_v  # Initial velocity noise
     
     smoothed_values = [ex]  # Store the smoothed values
     velocities = []  # Store the instant velocities
     smoothed_velocities = [ev]  # Store the smoothed velocities
     sig_v_list = [sig_v]  # Store the velocity noise over time
+    alphas = []  # Store the alpha values over time
+    velocity_differences = []  # Store the differences between raw and smoothed velocities
     
     for i in range(1, len(x)):
         dt = Ts[i] - Ts[i - 1]  # Time difference between consecutive measurements
@@ -35,6 +38,7 @@ def ewma_smoothing(x, Ts, Tmax, fps, initial_ex=0.0, initial_ev=0.0, initial_sig
 
         # Calculate alpha for this time step
         current_alpha = alpha(Tmax, v_instant, sig_v, fps, dt)
+        alphas.append(current_alpha)
 
         # Update the smoothed value using EWMA
         ex = current_alpha * x[i] + (1 - current_alpha) * ex
@@ -50,49 +54,68 @@ def ewma_smoothing(x, Ts, Tmax, fps, initial_ex=0.0, initial_ev=0.0, initial_sig
         if i >= 2:
             # Compute the velocity noise as the difference between raw and smoothed velocities
             velocity_differences = np.array(velocities[-min(i, 10):]) - np.array(smoothed_velocities[-min(i, 10):])
-            sig_v = np.std(velocity_differences)  # Noise as standard deviation of differences
+            # sig_v = np.std(velocity_differences)  # Noise as standard deviation of differences
+            sig_v = initial_sig_v
 
         # Store the updated values
         smoothed_values.append(ex)
-        sig_v_list.append(sig_v)
+        sig_v_list.append(np.std(velocity_differences))
 
-    return np.array(smoothed_values), np.array(velocities), np.array(smoothed_velocities), np.array(sig_v_list)
+    return np.array(smoothed_values), np.array(velocities), np.array(smoothed_velocities), np.array(sig_v_list), np.array(alphas)
 
 # Example Usage
-# Sample data and time axis (non-uniform intervals)
-Ts = 1000*np.array([0, 0.1, 0.25, 0.35, 0.55, 0.65, 0.8])  # Time in milliseconds (non-uniform time intervals)
-x = np.sin(2 * np.pi * Ts)  # Example signal, could be real measurements
-fps = 30  # Frames per second of the camera
-Tmax = 1000  # Maximum time constant for smoothing
+# Load the CSV file using pandas
+data = pd.read_csv("data/14-10-2024-10-38-04_cnsdk_blink_raw_data_trace.csv")
+# Trim spaces from the column names
+data.columns = data.columns.str.strip()
 
-# Run the EWMA smoothing
-smoothed_x, velocities, smoothed_velocities, sig_v_estimates = ewma_smoothing(x, Ts, Tmax, fps)
+# Extract the "leftEyeX2D" and "cameraTimestamp" columns as numpy arrays
+x = data["leftEye3DZ"].to_numpy()
+Ts = data["cameraTimestamp"].to_numpy()
+Ts = Ts - Ts[0]  # Start the time from zero
+
+
+fps = 90  # Frames per second of the camera
+Tmax = 1000
+smoothed_x, velocities, smoothed_velocities, sig_v_estimates, alphas = ewma_smoothing(x, Ts, Tmax, fps)
 
 # Output results
-print("Smoothed Values:", smoothed_x)
-print("Velocities:", velocities)
-print("Velocity Noise Estimates:", sig_v_estimates)
+# print("Smoothed Values:", smoothed_x)
+# print("Velocities:", velocities)
+# print("Velocity Noise Estimates:", sig_v_estimates)
 
 # Plot raw vs. smoothed data
 plt.figure(figsize=(10, 5))
 
 # Subplot 1: Raw vs. Smoothed Data
-plt.subplot(2, 1, 1)
-plt.plot(Ts, x, label="Raw Data", marker='o', linestyle='--')
-plt.plot(Ts, smoothed_x, label="Smoothed Data", marker='x')
+plt.subplot(4, 1, 1)
+plt.plot(Ts, x, label="Raw Data", linestyle='-')
+plt.plot(Ts, smoothed_x, label="Smoothed Data", linestyle='-')
 plt.title("Raw vs. Smoothed Data")
 plt.xlabel("Time (s)")
 plt.ylabel("Position")
-plt.legend()
+# plt.legend()
 
 # Subplot 2: Raw vs. Smoothed Velocities
-plt.subplot(2, 1, 2)
-plt.plot(Ts[1:], velocities, label="Raw Velocities", marker='o', linestyle='--')
-plt.plot(Ts, smoothed_velocities, label="Smoothed Velocities", marker='x')
+plt.subplot(4, 1, 2)
+plt.plot(Ts[1:], velocities, label="Raw Velocities", linestyle='-')
+plt.plot(Ts, smoothed_velocities, label="Smoothed Velocities")
 plt.title("Raw vs. Smoothed Velocities")
 plt.xlabel("Time (s)")
 plt.ylabel("Velocity")
-plt.legend()
+# plt.legend()
+
+plt.subplot(4, 1, 3)
+plt.plot(Ts[1:], alphas, label="Alphas", linestyle='-')
+plt.title("Alphas")
+plt.xlabel("Time (s)")
+plt.ylabel("Alphas")
+
+plt.subplot(4, 1, 4)
+plt.plot(Ts, sig_v_estimates, label="sig_v", linestyle='-')
+plt.title("sig_v")
+plt.xlabel("Time (s)")
+plt.ylabel("Alphas")
 
 # Show the plots
 plt.tight_layout()
