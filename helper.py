@@ -16,7 +16,7 @@ def alpha(Tmax, v, sig_v, fps, dt):
     return 1 - np.exp(-dt * invTc)  # Exponential smoothing with time constant Tc
 
 # EWMA with adaptive smoothing and velocity noise estimation
-def ewma_smoothing(x, Ts, Tmax, fps, initial_sig_v=0.07):
+def ewma_smoothing(x, Ts, Tmax, fps, initial_sig_v=0.2):
     ex = x[0]  # Smoothed variable
     ev = 0  # Smoothed velocity
     sig_v = initial_sig_v  # Initial velocity noise
