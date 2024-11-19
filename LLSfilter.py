@@ -4,6 +4,7 @@ import os
 import configparser
 from importCalibration import cameraIntrinsics, Extrinsics, stereoCameraCalibrationData, importCalibration
 from enum import Enum
+import matplotlib.pyplot as plt
 
 class FilterType(Enum):
     WeavingPoseFilter = 0
@@ -43,10 +44,13 @@ class SpeedLimitFilter:
 
                 if (abs(v.x) > self.speedLimit_cm_s.x):
                     v.x = np.sign(v.x) * self.speedLimit_cm_s.x
+                    print("Speed limit filter working on X")
                 if (abs(v.y > self.speedLimit_cm_s.y)):
                     v.y = np.sign(v.y) * self.speedLimit_cm_s.y
+                    print("Speed limit filter working on Y")
                 if (abs(v.z > self.speedLimit_cm_s.z)):
                     v.z = np.sign(v.z) * self.speedLimit_cm_s.z
+                    print("Speed limit filter working on Z")
 
                 output.x = self.prevOutput.x + v.x * dt
                 output.y = self.prevOutput.y + v.y * dt
@@ -403,7 +407,7 @@ class LLSfilter:
         if ptimez > maxPredictionTime:
             ptimez = maxPredictionTime
 
-        outputData = SR_vector4d()
+        outputData = SR_vector3d()
 
         vx, predictedX = self.LLS2(timesX, xs, currentTime + ptimex - pivotTime)
         vy, predictedY = self.LLS2(timesY, ys, currentTime + ptimey - pivotTime)
@@ -513,6 +517,22 @@ class LLSfilter:
         z = 0.5 * (trace[' leftEye.z'][index] + trace[' rightEye.z'][index])
         t = captureTime[index]
 
+        #Keep for debugging for now
+        # h_x_prev = []
+        # h_y_prev = []
+        # h_z_prev = []
+        # h_t_prev = []
+        # pred_x = []
+        # pred_y = []
+        # pred_z = []
+        # pred_t = []
+        # velocity_limited_x = []
+        # velocity_limited_y = []
+        # velocity_limited_z = []
+        # noise_rejection_x = []
+        # noise_rejection_y = []
+        # noise_rejection_z = []
+
         history.append(SR_vector4d(x=x, y=y, z=z, t=t))
         for k in range(j, len(timestamps) - 50):
             currentTime = timestamps['Current_time'][k]
@@ -535,9 +555,20 @@ class LLSfilter:
                 #
                 # print("\n")
 
+
+
+
             predictedFacePosition = SR_vector3d(x=0, y=0, z=0)
             if (len(history) >= 3):
                 predictedFacePosition = self.genericFilterWithHistory(history=history, currentTime=currentTime)
+
+                # Keep for debugging for now
+                # pred_x.append(predictedFacePosition.x)
+                # pred_y.append(predictedFacePosition.y)
+                # pred_z.append(predictedFacePosition.z)
+                # pred_t.append(currentTime + self.filterParameters.predictionTime)
+
+
                 # outputData = self.genericFilterWithHistory(history=history, currentTime=currentTime, parameters=self.filterParameters)
                 # #print(outputData.x, " ", outputData.y," " , outputData.z)
                 #
@@ -547,6 +578,7 @@ class LLSfilter:
                 # predicted_t.append(currentTime)
 
                 #End of prediction. Now apply speed limiter, exponentialDecay and NoiseRejection filter
+
 
                 #Prevent change of filtered position of more than 'maxPredictionDistance_cm' in three-dimensional space
                 deltaPos = SR_vector3d(x=0, y=0, z=0)
@@ -583,6 +615,11 @@ class LLSfilter:
                 # Apply speed limit filter
                 outputFacePosition = self.speedLimitFilter.filter(outputFacePosition, currentTime)
 
+                # Keep for debugging for now
+                # velocity_limited_x.append(outputFacePosition.x)
+                # velocity_limited_y.append(outputFacePosition.y)
+                # velocity_limited_z.append(outputFacePosition.z)
+
                 # If 'useExponentialDecay' is true, use exponential decay filter
                 if (self.filterParameters.useExponentialDecay):
                     outputFacePosition = self.exponentialDecayFilter.filter(outputFacePosition)
@@ -593,16 +630,68 @@ class LLSfilter:
                     secondLastMeasurement = history[-2]
 
                     lastMeasuredSpeed = SR_vector3d(x=0, y=0, z=0)
-                    lastMeasuredSpeed.x = (lastMeasuredSpeed.x - secondLastMeasurement.x) / (lastMeasurement.t - secondLastMeasurement.t)
-                    lastMeasuredSpeed.y = (lastMeasuredSpeed.y - secondLastMeasurement.y) / (lastMeasurement.t - secondLastMeasurement.t)
-                    lastMeasuredSpeed.z = (lastMeasuredSpeed.z - secondLastMeasurement.z) / (lastMeasurement.t - secondLastMeasurement.t)
+                    lastMeasuredSpeed.x = (lastMeasurement.x - secondLastMeasurement.x) / (lastMeasurement.t - secondLastMeasurement.t)
+                    lastMeasuredSpeed.y = (lastMeasurement.y - secondLastMeasurement.y) / (lastMeasurement.t - secondLastMeasurement.t)
+                    lastMeasuredSpeed.z = (lastMeasurement.z - secondLastMeasurement.z) / (lastMeasurement.t - secondLastMeasurement.t)
 
                     outputFacePosition = self.noiseRejectionFilter.filter(outputFacePosition, lastMeasuredSpeed)
+
+                    # Keep for debugging for now
+                    # noise_rejection_x.append(outputFacePosition.x)
+                    # noise_rejection_y.append(outputFacePosition.y)
+                    # noise_rejection_z.append(outputFacePosition.z)
 
                 predicted_x.append(outputFacePosition.x)
                 predicted_y.append(outputFacePosition.y)
                 predicted_z.append(outputFacePosition.z)
                 predicted_t.append(currentTime)
+
+                # #Keep for debugging for now
+                # h_x = []
+                # h_y = []
+                # h_z = []
+                # h_t = []
+
+                # for k in range(0, len(history)):
+                #     h_x.append(history[k].x)
+                #     h_y.append(history[k].y)
+                #     h_z.append(history[k].z)
+                #     h_t.append(history[k].t)
+
+                # Keep for debugging for now
+                # plt.subplot(3, 1, 1)
+                # plt.plot(h_t, h_x, '-o')
+                # plt.plot(h_t_prev, h_x_prev, '-o')
+                # plt.plot(pred_t, pred_x, '-o', color='black')
+                # plt.plot(pred_t, velocity_limited_x, '-o', color='green')
+                # plt.plot(pred_t, noise_rejection_x, '-o', color='red')
+                # plt.axvline(x=currentTime, color='black')
+                #
+                # plt.subplot(3, 1, 2)
+                # plt.plot(h_t, h_y, '-o')
+                # plt.plot(h_t_prev, h_y_prev, '-o')
+                # plt.plot(pred_t, pred_y, '-o', color='black')
+                # plt.plot(pred_t, velocity_limited_y, '-o', color='green')
+                # plt.plot(pred_t, noise_rejection_y, '-o', color='red')
+                # plt.axvline(x=currentTime, color='black')
+                #
+                # plt.subplot(3, 1, 3)
+                # plt.plot(h_t, h_z, '-o')
+                # plt.plot(h_t_prev, h_z_prev, '-o')
+                # plt.plot(pred_t, pred_z, '-o', color='black')
+                # plt.plot(pred_t, velocity_limited_z, '-o', color='green')
+                # plt.plot(pred_t, noise_rejection_z, '-o', color='red')
+                # plt.axvline(x=currentTime, color='black')
+                # print(currentTime)
+                # plt.show()
+                #
+                # h_t_prev = h_t
+                # h_x_prev = h_x
+                # h_y_prev = h_y
+                # h_z_prev = h_z
+                #
+                # print("h_t ", len(h_t), h_t)
+                # print("h_x ", h_x)
 
         return predicted_t, predicted_x, predicted_y, predicted_z
 
