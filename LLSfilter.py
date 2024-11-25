@@ -64,14 +64,16 @@ class SpeedLimitFilter:
 class ExponentialDecayFilter:
     def __init__(self, exponentialDecayAlpha = SR_vector3d(x=0.1, y=0.1, z=0.05)):
         self.exponentialDecayAlpha = exponentialDecayAlpha
-        self.prevOutput = SR_vector3d(x=0, y=0, z=0)
+        self.prevOutput = SR_vector3d(x=0.0, y=0.0, z=0.0)
 
-    def filter(self, input = SR_vector3d(x=0, y=0, z=0)):
+    def filter(self, input):
         output = SR_vector3d(x=0, y=0, z=0)
 
         output.x = self.prevOutput.x + (input.x - self.prevOutput.x) * self.exponentialDecayAlpha.x
         output.y = self.prevOutput.y + (input.y - self.prevOutput.y) * self.exponentialDecayAlpha.y
         output.z = self.prevOutput.z + (input.z - self.prevOutput.z) * self.exponentialDecayAlpha.z
+
+        self.prevOutput = output
 
         return output
 
@@ -90,6 +92,7 @@ class NoiseRejectionFilter:
         self.prevOutput = SR_vector3d(x=0, y=0, z=0)
 
     def filter(self, input = SR_vector3d(x=0, y=0, z=0), velocity_cm_s = SR_vector3d(x=0, y=0, z=0)):
+
         diff = SR_vector3d(x=0, y=0, z=0)
         output_smoothed = SR_vector3d(x=0, y=0, z=0)
 
@@ -134,48 +137,64 @@ class NoiseRejectionFilter:
         return output
 
 class LLSFilterParameters:
-    def __init__(self, maxSizeHistory = np.array([12, 12, 12]), smoothVscale = np.array([2.5, 2.5, 2.5]),
-                 numOutliers = np.array([2, 2, 2]), useFixedZ = True, fixedZ = 60, predictionTime = 0.020, path = '', filterType = FilterType.WeavingPoseFilter,
-                 speedLimit_cm_s = np.array([600, 600, 300]),
-                 usePrediction = True,
-                 predictZ = False,
-                 maxPredictionDistance_cm = 15,
-                 useExponentialDecay = False,
-                 exponentialDecayAlpha = np.array([0.1,0.1,0.05]),
-                 useNoiseRejection = True,
-                 noiseRejectionAlpha = np.array([0.1, 0.1, 0.1]),
-                 noiseRejectionThreshold_cm = np.array([1, 1, 1]),
-                 noiseRejectionThresholdSpeedRange_cm_s = np.array([5, 5, 5]),
-                 noiseRejectionThresholdAlpha = np.array([0.01,0.01,0.01])):
-        self.maxSizeHistory = maxSizeHistory
-        self.smoothVscale = smoothVscale
-        self.numOutliers = numOutliers
-        self.useFixedZ = useFixedZ
-        self.fixedZ = fixedZ
-        self.predictionTime = predictionTime
-        self.filterType = filterType
-        self.speedLimit_cm_s = speedLimit_cm_s
-        self.usePrediction = usePrediction
-        self.predictZ = predictZ
-        self.maxPredictionDistance_cm = maxPredictionDistance_cm
-        self.useExponentialDecay = useExponentialDecay
-        self.exponentialDecayAlpha = exponentialDecayAlpha
-        self.useNoiseRejection = useNoiseRejection
-        self.noiseRejectionAlpha = noiseRejectionAlpha
-        self.noiseRejectionThreshold_cm = noiseRejectionThreshold_cm
-        self.noiseRejectionThresholdSpeedRange_cm_s = noiseRejectionThresholdSpeedRange_cm_s
-        self.noiseRejectionThresholdAlpha = noiseRejectionThresholdAlpha
+    def __init__(self, maxSizeHistory = None,
+                 smoothVscale = None,
+                 numOutliers = None,
+                 useFixedZ = None,
+                 fixedZ = None,
+                 predictionTime = None,
+                 dataPath = None,
+                 filterType = FilterType.WeavingPoseFilter,
+                 speedLimit_cm_s = None,
+                 usePrediction = None,
+                 predictZ = None,
+                 maxPredictionDistance_cm = None,
+                 useExponentialDecay = None,
+                 exponentialDecayAlpha = None,
+                 useNoiseRejection = None,
+                 noiseRejectionAlpha = None,
+                 noiseRejectionThreshold_cm = None,
+                 noiseRejectionThresholdSpeedRange_cm_s = None,
+                 noiseRejectionThresholdAlpha = None):
+        self.maxSizeHistory = maxSizeHistory if maxSizeHistory is not None else np.array([4, 6, 12])
+        self.dataPath = dataPath if dataPath is not None else ''
+        self.smoothVscale = smoothVscale if smoothVscale is not None else np.array([0, 0, 0])
+        self.numOutliers = numOutliers if numOutliers is not None else np.array([0, 0, 0])
+        self.useFixedZ = useFixedZ if useFixedZ is not None else False
+        self.fixedZ = fixedZ if fixedZ is not None else 60
+        self.predictionTime = predictionTime if predictionTime is not None else 0.04
+        self.filterType = filterType if filterType is not None else FilterType.WeavingPoseFilter
+        self.speedLimit_cm_s = speedLimit_cm_s if speedLimit_cm_s is not None else np.array([600, 600, 300])
+        self.usePrediction = usePrediction if usePrediction is not None else True
+        self.predictZ = predictZ if predictZ is not None else True
+        self.maxPredictionDistance_cm = maxPredictionDistance_cm if maxPredictionDistance_cm is not None else 15
+        self.useExponentialDecay = useExponentialDecay if useExponentialDecay is not None else False
+        self.exponentialDecayAlpha = exponentialDecayAlpha if exponentialDecayAlpha is not None else np.array([0.1, 0.1, 0.05])
+        self.useNoiseRejection = useNoiseRejection if useNoiseRejection is not None else True
+        self.noiseRejectionAlpha = noiseRejectionAlpha if noiseRejectionAlpha is not None else np.array([0.1, 0.1, 0.1])
+        self.noiseRejectionThreshold_cm = noiseRejectionThreshold_cm if noiseRejectionThreshold_cm is not None else np.array([1.0, 1.0, 1.0])
+        self.noiseRejectionThresholdSpeedRange_cm_s = noiseRejectionThresholdSpeedRange_cm_s if noiseRejectionThresholdSpeedRange_cm_s is not None else np.array([5, 5, 5])
+        self.noiseRejectionThresholdAlpha = noiseRejectionThresholdAlpha if noiseRejectionThresholdAlpha is not None else np.array([0.01, 0.01, 0.01])
         if (self.useFixedZ):
             print("fixedZ", self.fixedZ)
-        if (len(path) > 0):
-            print("Importing filtering parameters from" + path)
+        if (len(self.dataPath) > 0):
+            print("Importing filtering parameters from" + self.dataPath)
+
+            print("The following parameters have been changed from ft_user.ini:")
+
             config = configparser.ConfigParser(inline_comment_prefixes=';')
             config.sections()
 
-            config.read(path + 'resources/ft_user.ini')
+            config.read(self.dataPath + 'resources/ft_user.ini')
             config.sections()
 
-            self.predictionTime = config.getfloat('ApplicationParameters', 'predictionTime_s')
+            if predictionTime is None:
+                if self.filterType == FilterType.WeavingPoseFilter:
+                    self.predictionTime = config.getfloat('ApplicationParameters', 'predictionTime_s')
+                else:
+                    self.predictionTime = config.getfloat('ApplicationParameters', 'predictionTimeScene_s')
+            else:
+                print('predictionTime: ', self.predictionTime)
 
             sectionName = ''
             if (filterType == FilterType.WeavingPoseFilter):
@@ -184,48 +203,111 @@ class LLSFilterParameters:
                 sectionName = 'LookaroundFilter'
             print('Loading parameters for: ', sectionName)
 
-            smoothVscale_str_vec = config.get(sectionName, 'smoothVscale').strip('[').strip(']').split(',')
-            for i in range(0, 3):
-                self.smoothVscale[i] = float(smoothVscale_str_vec[i])
-            filterHistory_str_vec = config.get(sectionName, 'filterHistory').strip('[').strip(']').split(
-                ',')
-            for i in range(0, 3):
-                self.maxSizeHistory[i] = int(filterHistory_str_vec[i])
-            numOutliers_str_vec = config.get(sectionName, 'numOutliers').strip('[').strip(']').split(',')
-            for i in range(0, 3):
-                self.numOutliers[i] = int(numOutliers_str_vec[i])
+            if smoothVscale is None:
+                smoothVscale_str_vec = config.get(sectionName, 'smoothVscale').strip('[').strip(']').split(',')
+                for i in range(0, 3):
+                    self.smoothVscale[i] = float(smoothVscale_str_vec[i])
+            else:
+                print("smoothVScale", self.smoothVscale)
 
-            speedLimit_cm_s_str_vec = config.get(sectionName, 'speedLimit_cm_s').strip('[').strip(']').split(',')
-            for i in range(0, 3):
-                self.speedLimit_cm_s[i] = float(speedLimit_cm_s_str_vec[i])
+            if maxSizeHistory is None:
+                filterHistory_str_vec = config.get(sectionName, 'filterHistory').strip('[').strip(']').split(
+                    ',')
+                for i in range(0, 3):
+                    self.maxSizeHistory[i] = int(filterHistory_str_vec[i])
 
-            self.usePrediction = config.getboolean(sectionName, 'usePrediction')
-            self.predictZ = config.getboolean(sectionName, 'predictZ')
-            self.fixedZ = config.getfloat(sectionName, 'fixedZ_cm') #convert to mm in case of stereo camera
-            self.maxPredictionDistance_cm = config.getfloat(sectionName, 'maxPredictionDistance_cm')
-            self.useExponentialDecay = config.getboolean(sectionName, 'useExponentialDecay')
-            self.useNoiseRejection = config.getboolean(sectionName, 'useNoiseRejection')
+            if numOutliers is None:
+                numOutliers_str_vec = config.get(sectionName, 'numOutliers').strip('[').strip(']').split(',')
+                for i in range(0, 3):
+                    self.numOutliers[i] = int(numOutliers_str_vec[i])
+
+            if speedLimit_cm_s is None:
+                speedLimit_cm_s_str_vec = config.get(sectionName, 'speedLimit_cm_s').strip('[').strip(']').split(',')
+                for i in range(0, 3):
+                    self.speedLimit_cm_s[i] = float(speedLimit_cm_s_str_vec[i])
+            else:
+                print('speedLimit_cm_s: ', self.speedLimit_cm_s)
+
+            if usePrediction is None:
+                self.usePrediction = config.getboolean(sectionName, 'usePrediction')
+            else:
+                print('usePrediction ', self.usePrediction)
+
+            if predictZ is None:
+                try:
+                    self.predictZ = config.getboolean(sectionName, 'predictZ')
+                except configparser.Error:
+                    print("predictZ is not specified, default will be used: ", self.predictZ)
+            else:
+                print('predictZ', self.predictZ)
+
+            if useFixedZ is None:
+                try:
+                    self.useFixedZ = config.getboolean(sectionName, 'useFixedZ')
+                except configparser.Error:
+                    print("useFixedZ is not specified, default will be used: ", self.useFixedZ)
+            else:
+                print('useFixedZ ', useFixedZ)
+
+            if fixedZ is None:
+                if self.useFixedZ:
+                    self.fixedZ = config.getfloat(sectionName, 'fixedZ_cm')
+            else:
+                print('fixedZ_cm: ', self.fixedZ)
+
+            if maxPredictionDistance_cm is None:
+                self.maxPredictionDistance_cm = config.getfloat(sectionName, 'maxPredictionDistance_cm')
+            else:
+                print('maxPredictionDistance_cm', self.maxPredictionDistance_cm)
+
+
+            if useExponentialDecay is None:
+                self.useExponentialDecay = config.getboolean(sectionName, 'useExponentialDecay')
+            else:
+                print('useExponentialDecay', self.useExponentialDecay)
+
+            if useNoiseRejection is None:
+                self.useNoiseRejection = config.getboolean(sectionName, 'useNoiseRejection')
+            else:
+                print('useNoiseRejection', self.useNoiseRejection)
+
 
             if (self.useExponentialDecay):
-                exponentialDecayAlpha_str_vec = config.get(sectionName, 'exponentialDecayAlpha').strip('[').strip(']').split(',')
+                if exponentialDecayAlpha is None:
+                    exponentialDecayAlpha_str_vec = config.get(sectionName, 'exponentialDecayAlpha').strip('[').strip(']').split(',')
+                    for i in range(0, 3):
+                        self.exponentialDecayAlpha[i] = float(exponentialDecayAlpha_str_vec[i])
+                else:
+                    print('exponentialDecayAlpha: ', self.exponentialDecayAlpha)
+
+            if noiseRejectionAlpha is None:
+                noiseRejectionAlpha_str_vec = config.get(sectionName, 'noiseRejectionAlpha').strip('[').strip(']').split(',')
                 for i in range(0, 3):
-                    self.exponentialDecayAlpha[i] = float(exponentialDecayAlpha_str_vec[i])
+                    self.noiseRejectionAlpha[i] = float(noiseRejectionAlpha_str_vec[i])
+            else:
+                print('noiseRejectionAlpha: ', self.noiseRejectionAlpha)
 
-            noiseRejectionAlpha_str_vec = config.get(sectionName, 'noiseRejectionAlpha').strip('[').strip(']').split(',')
-            for i in range(0, 3):
-                self.noiseRejectionAlpha[i] = float(noiseRejectionAlpha_str_vec[i])
 
-            noiseRejectionThreshold_cm_str_vec = config.get(sectionName, 'noiseRejectionThreshold_cm').strip('[').strip(']').split(',')
-            for i in range(0, 3):
-                self.noiseRejectionThreshold_cm[i] = float(noiseRejectionThreshold_cm_str_vec[i])
+            if noiseRejectionThreshold_cm is None:
+                noiseRejectionThreshold_cm_str_vec = config.get(sectionName, 'noiseRejectionThreshold_cm').strip('[').strip(']').split(',')
+                for i in range(0, 3):
+                    self.noiseRejectionThreshold_cm[i] = float(noiseRejectionThreshold_cm_str_vec[i])
+            else:
+                print('noiseRejectionThreshold_cm', self.noiseRejectionThreshold_cm)
 
-            noiseRejectionThresholdSpeedRange_cm_s_str_vec = config.get(sectionName, 'noiseRejectionThresholdSpeedRange_cm_s').strip('[').strip(']').split(',')
-            for i in range(0, 3):
-                self.noiseRejectionThresholdSpeedRange_cm_s[i] = float(noiseRejectionThresholdSpeedRange_cm_s_str_vec[i])
+            if noiseRejectionThresholdSpeedRange_cm_s is None:
+                noiseRejectionThresholdSpeedRange_cm_s_str_vec = config.get(sectionName, 'noiseRejectionThresholdSpeedRange_cm_s').strip('[').strip(']').split(',')
+                for i in range(0, 3):
+                    self.noiseRejectionThresholdSpeedRange_cm_s[i] = float(noiseRejectionThresholdSpeedRange_cm_s_str_vec[i])
+            else:
+                print('noiseRejectionThresholdSpeedRange_cm_s: ', self.noiseRejectionThresholdSpeedRange_cm_s)
 
-            noiseRejectionThresholdAlpha_str_vec = config.get(sectionName,'noiseRejectionThresholdAlpha').strip('[').strip(']').split(',')
-            for i in range(0, 3):
-                self.noiseRejectionThresholdAlpha[i] = float(noiseRejectionThresholdAlpha_str_vec[i])
+            if noiseRejectionThresholdAlpha is None:
+                noiseRejectionThresholdAlpha_str_vec = config.get(sectionName,'noiseRejectionThresholdAlpha').strip('[').strip(']').split(',')
+                for i in range(0, 3):
+                    self.noiseRejectionThresholdAlpha[i] = float(noiseRejectionThresholdAlpha_str_vec[i])
+            else:
+                print('noiseRejectionThresholdAlpha: ', self.noiseRejectionThresholdAlpha)
 
         print("--------------------FILTERING PARAMETERS------------------------------------------")
         print("maxSizeHistory", self.maxSizeHistory)
@@ -247,7 +329,7 @@ class LLSFilterParameters:
         print("noiseRejectionThresholdAlpha ", self.noiseRejectionThresholdAlpha)
 
 class LLSfilter:
-    def __init__(self, filterParameters = LLSFilterParameters(), calibrationData = stereoCameraCalibrationData()):
+    def __init__(self, filterParameters = LLSFilterParameters(), calibrationData = stereoCameraCalibrationData(), debuPlots = False):
         self.filterParameters = filterParameters
         self.calibrationData = calibrationData
         self.speedLimitFilter = SpeedLimitFilter(speedLimit_cm_s=SR_vector3d(x=self.filterParameters.speedLimit_cm_s[0],
@@ -260,6 +342,7 @@ class LLSfilter:
                                                                                              noiseRejectionThreshold=SR_vector3d(x=self.filterParameters.noiseRejectionThreshold_cm[0], y=self.filterParameters.noiseRejectionThreshold_cm[1], z=self.filterParameters.noiseRejectionThreshold_cm[2]),
                                                                                              noiseRejectionThresholdSpeedRange=SR_vector3d(x=self.filterParameters.noiseRejectionThresholdSpeedRange_cm_s[0], y=self.filterParameters.noiseRejectionThresholdSpeedRange_cm_s[1], z=self.filterParameters.noiseRejectionThresholdSpeedRange_cm_s[2]),
                                                                                              noiseRejectionThresholdAlpha=SR_vector3d(x=self.filterParameters.noiseRejectionThresholdAlpha[0], y=self.filterParameters.noiseRejectionThresholdAlpha[1], z=self.filterParameters.noiseRejectionThresholdAlpha[2])))
+        self.debugPlots = debuPlots
 
     def LLS2(self, xvals, yvals, xpredict):
         XSx = 0
@@ -434,8 +517,12 @@ class LLSfilter:
         cameraLatency_s = config.getfloat('ApplicationParameters', 'cameraLatency_s')
 
         for file in os.listdir(dataPath):
-            if file.endswith('raw.csv'):
-                trace = pd.read_csv(dataPath + file)
+            if self.filterParameters.filterType == FilterType.LookaroundFilter:
+                if file.endswith('rawTransformed.csv'):
+                    trace = pd.read_csv(dataPath + file)
+            else:
+                if file.endswith('raw.csv'):
+                    trace = pd.read_csv(dataPath + file)
 
         x = 0.5 * (trace[' leftEye.x'] + trace[' rightEye.x'])
         y = 0.5 * (trace[' leftEye.y'] + trace[' rightEye.y'])
@@ -486,8 +573,12 @@ class LLSfilter:
         predicted_t = []
 
         for file in os.listdir(dataPath):
-            if file.endswith('raw.csv'):
-                trace = pd.read_csv(dataPath + file)
+            if self.filterParameters.filterType == FilterType.LookaroundFilter:
+                if file.endswith('rawTransformed.csv'):
+                    trace = pd.read_csv(dataPath + file)
+            else:
+                if file.endswith('raw.csv'):
+                    trace = pd.read_csv(dataPath + file)
             if file.endswith('ptrdictionTimestamps.csv'):
                 timestamps = pd.read_csv(dataPath + file)
 
@@ -506,7 +597,7 @@ class LLSfilter:
             else:
                 j = j + 1
 
-        index = index - 1
+        #index = index + 1
 
         print(captureTime[index], startTimestamp)
 
@@ -518,23 +609,23 @@ class LLSfilter:
         t = captureTime[index]
 
         #Keep for debugging for now
-        # h_x_prev = []
-        # h_y_prev = []
-        # h_z_prev = []
-        # h_t_prev = []
-        # pred_x = []
-        # pred_y = []
-        # pred_z = []
-        # pred_t = []
-        # velocity_limited_x = []
-        # velocity_limited_y = []
-        # velocity_limited_z = []
-        # noise_rejection_x = []
-        # noise_rejection_y = []
-        # noise_rejection_z = []
+        h_x_prev = []
+        h_y_prev = []
+        h_z_prev = []
+        h_t_prev = []
+        pred_x = []
+        pred_y = []
+        pred_z = []
+        pred_t = []
+        velocity_limited_x = []
+        velocity_limited_y = []
+        velocity_limited_z = []
+        noise_rejection_x = []
+        noise_rejection_y = []
+        noise_rejection_z = []
 
         history.append(SR_vector4d(x=x, y=y, z=z, t=t))
-        for k in range(j, len(timestamps) - 50):
+        for k in range(j + 1, len(timestamps) - 100):
             currentTime = timestamps['Current_time'][k]
             #print("Current Time: ", currentTime)
             if (timestamps['Latest_data_timestamp'][k] > newDataPointTimestamp):
@@ -544,6 +635,9 @@ class LLSfilter:
                 y = 0.5 * (trace[' leftEye.y'][index] + trace[' rightEye.y'][index])
                 z = 0.5 * (trace[' leftEye.z'][index] + trace[' rightEye.z'][index])
                 t = captureTime[index]
+
+                print('Index:', index, ' k ', k, 'Currect:',  currentTime, ' latest: ', newDataPointTimestamp, ' diff ', currentTime - newDataPointTimestamp)
+
 
                 if (len(history) >= maxHistorySize):
                     del history[0]
@@ -563,10 +657,10 @@ class LLSfilter:
                 predictedFacePosition = self.genericFilterWithHistory(history=history, currentTime=currentTime)
 
                 # Keep for debugging for now
-                # pred_x.append(predictedFacePosition.x)
-                # pred_y.append(predictedFacePosition.y)
-                # pred_z.append(predictedFacePosition.z)
-                # pred_t.append(currentTime + self.filterParameters.predictionTime)
+                pred_x.append(predictedFacePosition.x)
+                pred_y.append(predictedFacePosition.y)
+                pred_z.append(predictedFacePosition.z)
+                pred_t.append(currentTime + self.filterParameters.predictionTime)
 
 
                 # outputData = self.genericFilterWithHistory(history=history, currentTime=currentTime, parameters=self.filterParameters)
@@ -616,9 +710,9 @@ class LLSfilter:
                 outputFacePosition = self.speedLimitFilter.filter(outputFacePosition, currentTime)
 
                 # Keep for debugging for now
-                # velocity_limited_x.append(outputFacePosition.x)
-                # velocity_limited_y.append(outputFacePosition.y)
-                # velocity_limited_z.append(outputFacePosition.z)
+                velocity_limited_x.append(outputFacePosition.x)
+                velocity_limited_y.append(outputFacePosition.y)
+                velocity_limited_z.append(outputFacePosition.z)
 
                 # If 'useExponentialDecay' is true, use exponential decay filter
                 if (self.filterParameters.useExponentialDecay):
@@ -637,61 +731,65 @@ class LLSfilter:
                     outputFacePosition = self.noiseRejectionFilter.filter(outputFacePosition, lastMeasuredSpeed)
 
                     # Keep for debugging for now
-                    # noise_rejection_x.append(outputFacePosition.x)
-                    # noise_rejection_y.append(outputFacePosition.y)
-                    # noise_rejection_z.append(outputFacePosition.z)
+                    noise_rejection_x.append(outputFacePosition.x)
+                    noise_rejection_y.append(outputFacePosition.y)
+                    noise_rejection_z.append(outputFacePosition.z)
 
                 predicted_x.append(outputFacePosition.x)
                 predicted_y.append(outputFacePosition.y)
                 predicted_z.append(outputFacePosition.z)
                 predicted_t.append(currentTime)
 
-                # #Keep for debugging for now
-                # h_x = []
-                # h_y = []
-                # h_z = []
-                # h_t = []
+                #Keep for debugging for now
+                h_x = []
+                h_y = []
+                h_z = []
+                h_t = []
 
-                # for k in range(0, len(history)):
-                #     h_x.append(history[k].x)
-                #     h_y.append(history[k].y)
-                #     h_z.append(history[k].z)
-                #     h_t.append(history[k].t)
+                for k in range(0, len(history)):
+                    h_x.append(history[k].x)
+                    h_y.append(history[k].y)
+                    h_z.append(history[k].z)
+                    h_t.append(history[k].t)
 
-                # Keep for debugging for now
-                # plt.subplot(3, 1, 1)
-                # plt.plot(h_t, h_x, '-o')
-                # plt.plot(h_t_prev, h_x_prev, '-o')
-                # plt.plot(pred_t, pred_x, '-o', color='black')
-                # plt.plot(pred_t, velocity_limited_x, '-o', color='green')
-                # plt.plot(pred_t, noise_rejection_x, '-o', color='red')
-                # plt.axvline(x=currentTime, color='black')
-                #
-                # plt.subplot(3, 1, 2)
-                # plt.plot(h_t, h_y, '-o')
-                # plt.plot(h_t_prev, h_y_prev, '-o')
-                # plt.plot(pred_t, pred_y, '-o', color='black')
-                # plt.plot(pred_t, velocity_limited_y, '-o', color='green')
-                # plt.plot(pred_t, noise_rejection_y, '-o', color='red')
-                # plt.axvline(x=currentTime, color='black')
-                #
-                # plt.subplot(3, 1, 3)
-                # plt.plot(h_t, h_z, '-o')
-                # plt.plot(h_t_prev, h_z_prev, '-o')
-                # plt.plot(pred_t, pred_z, '-o', color='black')
-                # plt.plot(pred_t, velocity_limited_z, '-o', color='green')
-                # plt.plot(pred_t, noise_rejection_z, '-o', color='red')
-                # plt.axvline(x=currentTime, color='black')
-                # print(currentTime)
-                # plt.show()
-                #
-                # h_t_prev = h_t
-                # h_x_prev = h_x
-                # h_y_prev = h_y
-                # h_z_prev = h_z
-                #
-                # print("h_t ", len(h_t), h_t)
-                # print("h_x ", h_x)
+                #Keep for debugging for now
+                if self.debugPlots:
+                    plt.subplot(3, 1, 1)
+                    plt.plot(h_t, h_x, '-o')
+                    plt.plot(h_t_prev, h_x_prev, '-o')
+                    plt.plot(pred_t, pred_x, '-o', color='black')
+                    plt.plot(pred_t, velocity_limited_x, '-o', color='green')
+                    plt.plot(pred_t, noise_rejection_x, '-o', color='red')
+                    plt.legend(['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
+                    plt.axvline(x=currentTime, color='black')
+
+                    plt.subplot(3, 1, 2)
+                    plt.plot(h_t, h_y, '-o')
+                    plt.plot(h_t_prev, h_y_prev, '-o')
+                    plt.plot(pred_t, pred_y, '-o', color='black')
+                    plt.plot(pred_t, velocity_limited_y, '-o', color='green')
+                    plt.plot(pred_t, noise_rejection_y, '-o', color='red')
+                    plt.legend(['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
+                    plt.axvline(x=currentTime, color='black')
+
+                    plt.subplot(3, 1, 3)
+                    plt.plot(h_t, h_z, '-o')
+                    plt.plot(h_t_prev, h_z_prev, '-o')
+                    plt.plot(pred_t, pred_z, '-o', color='black')
+                    plt.plot(pred_t, velocity_limited_z, '-o', color='green')
+                    plt.plot(pred_t, noise_rejection_z, '-o', color='red')
+                    plt.legend(['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
+                    plt.axvline(x=currentTime, color='black')
+                    print(currentTime)
+                    plt.show()
+
+                    h_t_prev = h_t
+                    h_x_prev = h_x
+                    h_y_prev = h_y
+                    h_z_prev = h_z
+
+                    print("h_t ", len(h_t), h_t)
+                    print("h_x ", h_x)
 
         return predicted_t, predicted_x, predicted_y, predicted_z
 
