@@ -3,8 +3,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-dataID = '2024-11-25___13_38_25'
-#dataID = '2024-11-15___17_19_25'
+
+#dataID = '2024-11-26___11_19_52'
+#dataID = '2024-11-26___13_49_40'
+dataID = '2024-11-26___13_49_48'
+
 dataPath = './data/windows_traces/'
 
 dataPath = dataPath + dataID + '/'
@@ -29,6 +32,7 @@ if (llsFilterParameters.filterType == FilterType.WeavingPoseFilter):
 else:
     data = pd.read_csv(dataPath + dataID + '_predicted.csv')
 t_predicted_etr = data['timeLogged']
+#t_predicted_etr = data[' usedInterpolatedTime']
 #Debugging
 t_mostRecent_etr = data[' mostRecentObservationTime']
 delay_capture_logged = t_predicted_etr - t_mostRecent_etr

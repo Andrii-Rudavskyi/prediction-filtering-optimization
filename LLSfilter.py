@@ -545,7 +545,7 @@ class LLSfilter:
                 data = pd.read_csv(dataPath + file)
 
         currentTime = data['Current_time']
-        lastDataTimestamps = data['Latest_data_timestamp']
+        lastDataTimestamps = data[' latest_time']
 
         return currentTime, lastDataTimestamps
 
@@ -580,35 +580,12 @@ class LLSfilter:
                 if file.endswith('raw.csv'):
                     trace = pd.read_csv(dataPath + file)
             if file.endswith('ptrdictionTimestamps.csv'):
-                timestamps = pd.read_csv(dataPath + file)
+                filterData = pd.read_csv(dataPath + file)
 
         captureTime = trace[' timeCaptured']  # correct timestamps for camera latency
         captureTime = np.array(captureTime)
-        startFound = False
-        j = 0
 
-        while(not startFound):
-            startTimestamp = timestamps['Latest_data_timestamp'][j]
-
-            index = np.searchsorted(captureTime, startTimestamp)
-            if (index != 0):
-                startFound = True
-                print(index)
-            else:
-                j = j + 1
-
-        #index = index + 1
-
-        print(captureTime[index], startTimestamp)
-
-        newDataPointTimestamp = startTimestamp
-
-        x = 0.5 * (trace[' leftEye.x'][index] + trace[' rightEye.x'][index])
-        y = 0.5 * (trace[' leftEye.y'][index] + trace[' rightEye.y'][index])
-        z = 0.5 * (trace[' leftEye.z'][index] + trace[' rightEye.z'][index])
-        t = captureTime[index]
-
-        #Keep for debugging for now
+        # #Keep for debugging for now
         h_x_prev = []
         h_y_prev = []
         h_z_prev = []
@@ -624,33 +601,28 @@ class LLSfilter:
         noise_rejection_y = []
         noise_rejection_z = []
 
+        currentTime = filterData['Current_time'][0]
+        newDataPointTimestamp = filterData[' latest_time'][0]
+        x = filterData[' latest_x'][0]
+        y = filterData[' latest_y'][0]
+        z = filterData[' latest_z '][0]
+        t = newDataPointTimestamp
+
         history.append(SR_vector4d(x=x, y=y, z=z, t=t))
-        for k in range(j + 1, len(timestamps) - 100):
-            currentTime = timestamps['Current_time'][k]
-            #print("Current Time: ", currentTime)
-            if (timestamps['Latest_data_timestamp'][k] > newDataPointTimestamp):
-                newDataPointTimestamp = timestamps['Latest_data_timestamp'][k]
-                index = index + 1
-                x = 0.5 * (trace[' leftEye.x'][index] + trace[' rightEye.x'][index])
-                y = 0.5 * (trace[' leftEye.y'][index] + trace[' rightEye.y'][index])
-                z = 0.5 * (trace[' leftEye.z'][index] + trace[' rightEye.z'][index])
-                t = captureTime[index]
 
-                print('Index:', index, ' k ', k, 'Currect:',  currentTime, ' latest: ', newDataPointTimestamp, ' diff ', currentTime - newDataPointTimestamp)
-
+        for j in range(1, len(filterData)):
+            currentTime = filterData['Current_time'][j]
+            if (filterData[' latest_time'][j] > newDataPointTimestamp):
+                newDataPointTimestamp = filterData[' latest_time'][j]
+                x = filterData[' latest_x'][j]
+                y = filterData[' latest_y'][j]
+                z = filterData[' latest_z '][j]
+                t = newDataPointTimestamp
 
                 if (len(history) >= maxHistorySize):
                     del history[0]
 
                 history.append(SR_vector4d(x=x, y=y, z=z, t=t))
-
-                # for l in range(0, len(history)):
-                #     print(history[l].x, ' , ',history[l].t)
-                #
-                # print("\n")
-
-
-
 
             predictedFacePosition = SR_vector3d(x=0, y=0, z=0)
             if (len(history) >= 3):
@@ -662,7 +634,6 @@ class LLSfilter:
                 pred_z.append(predictedFacePosition.z)
                 pred_t.append(currentTime + self.filterParameters.predictionTime)
 
-
                 # outputData = self.genericFilterWithHistory(history=history, currentTime=currentTime, parameters=self.filterParameters)
                 # #print(outputData.x, " ", outputData.y," " , outputData.z)
                 #
@@ -671,16 +642,16 @@ class LLSfilter:
                 # predicted_z.append(outputData.z)
                 # predicted_t.append(currentTime)
 
-                #End of prediction. Now apply speed limiter, exponentialDecay and NoiseRejection filter
+                # End of prediction. Now apply speed limiter, exponentialDecay and NoiseRejection filter
 
-
-                #Prevent change of filtered position of more than 'maxPredictionDistance_cm' in three-dimensional space
+                # Prevent change of filtered position of more than 'maxPredictionDistance_cm' in three-dimensional space
                 deltaPos = SR_vector3d(x=0, y=0, z=0)
                 deltaPos.x = predictedFacePosition.x - history[-1].x
                 deltaPos.y = predictedFacePosition.y - history[-1].y
                 deltaPos.z = predictedFacePosition.z - history[-1].z
 
-                distanceFromLastMeasurement = np.sqrt(deltaPos.x * deltaPos.x + deltaPos.y * deltaPos.y + deltaPos.z * deltaPos.z)
+                distanceFromLastMeasurement = np.sqrt(
+                    deltaPos.x * deltaPos.x + deltaPos.y * deltaPos.y + deltaPos.z * deltaPos.z)
                 if (distanceFromLastMeasurement > self.filterParameters.maxPredictionDistance_cm):
                     deltaPos.x = deltaPos.x * self.filterParameters.maxPredictionDistance_cm / distanceFromLastMeasurement
                     deltaPos.y = deltaPos.y * self.filterParameters.maxPredictionDistance_cm / distanceFromLastMeasurement
@@ -718,15 +689,18 @@ class LLSfilter:
                 if (self.filterParameters.useExponentialDecay):
                     outputFacePosition = self.exponentialDecayFilter.filter(outputFacePosition)
 
-                #If 'useNoiseRejection' is true, use noise rejection filter
+                # If 'useNoiseRejection' is true, use noise rejection filter
                 if (self.filterParameters.useNoiseRejection):
                     lastMeasurement = history[-1]
                     secondLastMeasurement = history[-2]
 
                     lastMeasuredSpeed = SR_vector3d(x=0, y=0, z=0)
-                    lastMeasuredSpeed.x = (lastMeasurement.x - secondLastMeasurement.x) / (lastMeasurement.t - secondLastMeasurement.t)
-                    lastMeasuredSpeed.y = (lastMeasurement.y - secondLastMeasurement.y) / (lastMeasurement.t - secondLastMeasurement.t)
-                    lastMeasuredSpeed.z = (lastMeasurement.z - secondLastMeasurement.z) / (lastMeasurement.t - secondLastMeasurement.t)
+                    lastMeasuredSpeed.x = (lastMeasurement.x - secondLastMeasurement.x) / (
+                                lastMeasurement.t - secondLastMeasurement.t)
+                    lastMeasuredSpeed.y = (lastMeasurement.y - secondLastMeasurement.y) / (
+                                lastMeasurement.t - secondLastMeasurement.t)
+                    lastMeasuredSpeed.z = (lastMeasurement.z - secondLastMeasurement.z) / (
+                                lastMeasurement.t - secondLastMeasurement.t)
 
                     outputFacePosition = self.noiseRejectionFilter.filter(outputFacePosition, lastMeasuredSpeed)
 
@@ -740,7 +714,7 @@ class LLSfilter:
                 predicted_z.append(outputFacePosition.z)
                 predicted_t.append(currentTime)
 
-                #Keep for debugging for now
+                # Keep for debugging for now
                 h_x = []
                 h_y = []
                 h_z = []
@@ -752,7 +726,7 @@ class LLSfilter:
                     h_z.append(history[k].z)
                     h_t.append(history[k].t)
 
-                #Keep for debugging for now
+                # Keep for debugging for now
                 if self.debugPlots:
                     plt.subplot(3, 1, 1)
                     plt.plot(h_t, h_x, '-o')
@@ -760,7 +734,8 @@ class LLSfilter:
                     plt.plot(pred_t, pred_x, '-o', color='black')
                     plt.plot(pred_t, velocity_limited_x, '-o', color='green')
                     plt.plot(pred_t, noise_rejection_x, '-o', color='red')
-                    plt.legend(['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
+                    plt.legend(
+                        ['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
                     plt.axvline(x=currentTime, color='black')
 
                     plt.subplot(3, 1, 2)
@@ -769,7 +744,8 @@ class LLSfilter:
                     plt.plot(pred_t, pred_y, '-o', color='black')
                     plt.plot(pred_t, velocity_limited_y, '-o', color='green')
                     plt.plot(pred_t, noise_rejection_y, '-o', color='red')
-                    plt.legend(['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
+                    plt.legend(
+                        ['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
                     plt.axvline(x=currentTime, color='black')
 
                     plt.subplot(3, 1, 3)
@@ -778,7 +754,8 @@ class LLSfilter:
                     plt.plot(pred_t, pred_z, '-o', color='black')
                     plt.plot(pred_t, velocity_limited_z, '-o', color='green')
                     plt.plot(pred_t, noise_rejection_z, '-o', color='red')
-                    plt.legend(['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
+                    plt.legend(
+                        ['New point', 'History', 'Predicted', 'After speed limit filter', 'After noise rejection'])
                     plt.axvline(x=currentTime, color='black')
                     print(currentTime)
                     plt.show()
@@ -790,6 +767,7 @@ class LLSfilter:
 
                     print("h_t ", len(h_t), h_t)
                     print("h_x ", h_x)
+
 
         return predicted_t, predicted_x, predicted_y, predicted_z
 
