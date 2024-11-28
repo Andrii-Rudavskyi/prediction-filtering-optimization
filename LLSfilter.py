@@ -549,17 +549,8 @@ class LLSfilter:
         predicted_t = []
 
         for file in os.listdir(dataPath):
-            if self.filterParameters.filterType == FilterType.LookaroundFilter:
-                if file.endswith('rawTransformed.csv'):
-                    trace = pd.read_csv(dataPath + file)
-            else:
-                if file.endswith('raw.csv'):
-                    trace = pd.read_csv(dataPath + file)
             if file.endswith('ptrdictionTimestamps.csv'):
                 filterData = pd.read_csv(dataPath + file)
-
-        captureTime = trace[' timeCaptured']  # correct timestamps for camera latency
-        captureTime = np.array(captureTime)
 
         # Keep for debugging for now
         if self.debugPlots:
