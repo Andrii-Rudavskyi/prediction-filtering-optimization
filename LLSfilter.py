@@ -137,7 +137,8 @@ class NoiseRejectionFilter:
         return output
 
 class LLSFilterParameters:
-    def __init__(self, maxSizeHistory = None,
+    def __init__(self, cameraLatency_s = None,
+                 maxSizeHistory = None,
                  smoothVscale = None,
                  numOutliers = None,
                  useFixedZ = None,
@@ -156,6 +157,7 @@ class LLSFilterParameters:
                  noiseRejectionThreshold_cm = None,
                  noiseRejectionThresholdSpeedRange_cm_s = None,
                  noiseRejectionThresholdAlpha = None):
+        self.cameraLatency_s = cameraLatency_s if cameraLatency_s is not None else 0.02436
         self.maxSizeHistory = maxSizeHistory if maxSizeHistory is not None else np.array([4, 6, 12])
         self.dataPath = dataPath if dataPath is not None else ''
         self.smoothVscale = smoothVscale if smoothVscale is not None else np.array([0, 0, 0])
@@ -187,6 +189,11 @@ class LLSFilterParameters:
 
             config.read(self.dataPath + 'resources/ft_user.ini')
             config.sections()
+
+            if cameraLatency_s is None:
+                self.cameraLatency_s = config.getfloat('ApplicationParameters', 'cameraLatency_s')
+            else:
+                print('cameraLatency_s', self.cameraLatency_s)
 
             if predictionTime is None:
                 if self.filterType == FilterType.WeavingPoseFilter:
@@ -310,6 +317,7 @@ class LLSFilterParameters:
                 print('noiseRejectionThresholdAlpha: ', self.noiseRejectionThresholdAlpha)
 
         print("--------------------FILTERING PARAMETERS------------------------------------------")
+        print("cameraLatency_s", self.cameraLatency_s)
         print("maxSizeHistory", self.maxSizeHistory)
         print("smoothVscale", self.smoothVscale)
         print("numOutliers", self.numOutliers)
@@ -507,15 +515,6 @@ class LLSfilter:
         return outputData
 
     def retrieveRawData(self, dataPath):
-        config = configparser.ConfigParser(inline_comment_prefixes=';')
-        config.sections()
-
-        config.read(dataPath + 'resources/ft_user.ini')
-        config.sections()
-
-        # read in camera latency parameter. It is needed to correct timestamps.
-        cameraLatency_s = config.getfloat('ApplicationParameters', 'cameraLatency_s')
-
         for file in os.listdir(dataPath):
             if self.filterParameters.filterType == FilterType.LookaroundFilter:
                 if file.endswith('rawTransformed.csv'):
@@ -531,15 +530,6 @@ class LLSfilter:
         return t, x, y, z
 
     def simulatorDebugData(self, dataPath):
-        config = configparser.ConfigParser(inline_comment_prefixes=';')
-        config.sections()
-
-        config.read(dataPath + 'resources/ft_user.ini')
-        config.sections()
-
-        # read in camera latency parameter. It is needed to correct timestamps.
-        cameraLatency_s = config.getfloat('ApplicationParameters', 'cameraLatency_s')
-
         for file in os.listdir(dataPath):
             if file.endswith('ptrdictionTimestamps.csv'):
                 data = pd.read_csv(dataPath + file)
