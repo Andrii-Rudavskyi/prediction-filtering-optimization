@@ -1,14 +1,20 @@
-from LLSfilter import LLSFilterParameters, LLSfilter, SR_vector4d
+from LLSfilter import LLSfilter, LLSFilterParameters, FilterType
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
 
-dataPath = './data/windows_traces/2024-11-15___17_19_25/'
-#initialize filter parameterts with the ones in ft_user.ini
-llsFilterParameters = LLSFilterParameters(path=dataPath)
+#dataID = '2024-11-26___11_19_52'
+#dataID = '2024-11-26___13_49_40'
+dataID = '2024-11-26___13_49_48'
 
-llsfilter = LLSfilter(llsFilterParameters)
+dataPath = './data/windows_traces/'
+
+dataPath = dataPath + dataID + '/'
+#initialize filter parameterts with the ones in ft_user.ini
+llsFilterParameters = LLSFilterParameters(dataPath=dataPath, filterType=FilterType.WeavingPoseFilter)
+
+llsfilter = LLSfilter(llsFilterParameters, debuPlots=False)
 
 t, x, y, z = llsfilter.retrieveRawData(dataPath=dataPath)
 time_origin = t[0]
@@ -21,8 +27,12 @@ t_predicted, x_predicted, y_predicted, z_predicted = llsfilter.outputThread(data
 t_predicted = t_predicted - time_origin
 predicted = [x_predicted, y_predicted, z_predicted]
 
-data = pd.read_csv(dataPath + '2024-11-15___17_19_25_predictedWeaving.csv')
+if (llsFilterParameters.filterType == FilterType.WeavingPoseFilter):
+    data = pd.read_csv(dataPath + dataID + '_predictedWeaving.csv')
+else:
+    data = pd.read_csv(dataPath + dataID + '_predicted.csv')
 t_predicted_etr = data['timeLogged']
+#t_predicted_etr = data[' usedInterpolatedTime']
 #Debugging
 t_mostRecent_etr = data[' mostRecentObservationTime']
 delay_capture_logged = t_predicted_etr - t_mostRecent_etr
@@ -58,3 +68,5 @@ plt.subplot(5,1,2)
 plt.plot(np.diff(t_predicted_etr), '-o')
 plt.plot(np.diff(currentTime), '-o')
 plt.show()
+
+print('Average delay_capture_current', np.average(delay_capture_current))
