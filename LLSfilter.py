@@ -540,21 +540,7 @@ class LLSfilter:
         return currentTime, lastDataTimestamps
 
     def outputThread(self, dataPath):
-        config = configparser.ConfigParser(inline_comment_prefixes=';')
-        config.sections()
-
-        config.read(dataPath + 'resources/ft_user.ini')
-        config.sections()
-
-        #read in camera latency parameter. It is needed to correct timestamps.
-        cameraLatency_s = config.getfloat('ApplicationParameters', 'cameraLatency_s')
-
-        print(cameraLatency_s)
-
         maxHistorySize = max(self.filterParameters.maxSizeHistory)
-        print('maxHistorySize: ', maxHistorySize)
-        print('maxSizeHistory: ', self.filterParameters.maxSizeHistory)
-        print('smoothVscale: ', self.filterParameters.smoothVscale)
 
         history = []
         predicted_x = []
@@ -575,21 +561,22 @@ class LLSfilter:
         captureTime = trace[' timeCaptured']  # correct timestamps for camera latency
         captureTime = np.array(captureTime)
 
-        # #Keep for debugging for now
-        h_x_prev = []
-        h_y_prev = []
-        h_z_prev = []
-        h_t_prev = []
-        pred_x = []
-        pred_y = []
-        pred_z = []
-        pred_t = []
-        velocity_limited_x = []
-        velocity_limited_y = []
-        velocity_limited_z = []
-        noise_rejection_x = []
-        noise_rejection_y = []
-        noise_rejection_z = []
+        # Keep for debugging for now
+        if self.debugPlots:
+            h_x_prev = []
+            h_y_prev = []
+            h_z_prev = []
+            h_t_prev = []
+            pred_x = []
+            pred_y = []
+            pred_z = []
+            pred_t = []
+            velocity_limited_x = []
+            velocity_limited_y = []
+            velocity_limited_z = []
+            noise_rejection_x = []
+            noise_rejection_y = []
+            noise_rejection_z = []
 
         currentTime = filterData['Current_time'][0]
         newDataPointTimestamp = filterData[' latest_time'][0]
@@ -619,20 +606,11 @@ class LLSfilter:
                 predictedFacePosition = self.genericFilterWithHistory(history=history, currentTime=currentTime)
 
                 # Keep for debugging for now
-                pred_x.append(predictedFacePosition.x)
-                pred_y.append(predictedFacePosition.y)
-                pred_z.append(predictedFacePosition.z)
-                pred_t.append(currentTime + self.filterParameters.predictionTime)
-
-                # outputData = self.genericFilterWithHistory(history=history, currentTime=currentTime, parameters=self.filterParameters)
-                # #print(outputData.x, " ", outputData.y," " , outputData.z)
-                #
-                # predicted_x.append(outputData.x)
-                # predicted_y.append(outputData.y)
-                # predicted_z.append(outputData.z)
-                # predicted_t.append(currentTime)
-
-                # End of prediction. Now apply speed limiter, exponentialDecay and NoiseRejection filter
+                if self.debugPlots:
+                    pred_x.append(predictedFacePosition.x)
+                    pred_y.append(predictedFacePosition.y)
+                    pred_z.append(predictedFacePosition.z)
+                    pred_t.append(currentTime + self.filterParameters.predictionTime)
 
                 # Prevent change of filtered position of more than 'maxPredictionDistance_cm' in three-dimensional space
                 deltaPos = SR_vector3d(x=0, y=0, z=0)
@@ -671,9 +649,10 @@ class LLSfilter:
                 outputFacePosition = self.speedLimitFilter.filter(outputFacePosition, currentTime)
 
                 # Keep for debugging for now
-                velocity_limited_x.append(outputFacePosition.x)
-                velocity_limited_y.append(outputFacePosition.y)
-                velocity_limited_z.append(outputFacePosition.z)
+                if self.debugPlots:
+                    velocity_limited_x.append(outputFacePosition.x)
+                    velocity_limited_y.append(outputFacePosition.y)
+                    velocity_limited_z.append(outputFacePosition.z)
 
                 # If 'useExponentialDecay' is true, use exponential decay filter
                 if (self.filterParameters.useExponentialDecay):
@@ -695,9 +674,10 @@ class LLSfilter:
                     outputFacePosition = self.noiseRejectionFilter.filter(outputFacePosition, lastMeasuredSpeed)
 
                     # Keep for debugging for now
-                    noise_rejection_x.append(outputFacePosition.x)
-                    noise_rejection_y.append(outputFacePosition.y)
-                    noise_rejection_z.append(outputFacePosition.z)
+                    if self.debugPlots:
+                        noise_rejection_x.append(outputFacePosition.x)
+                        noise_rejection_y.append(outputFacePosition.y)
+                        noise_rejection_z.append(outputFacePosition.z)
 
                 predicted_x.append(outputFacePosition.x)
                 predicted_y.append(outputFacePosition.y)
