@@ -4,11 +4,15 @@ import pandas as pd
 import numpy as np
 
 
-#dataID = '2024-11-26___11_19_52'
-#dataID = '2024-11-26___13_49_40'
-dataID = '2024-11-26___13_49_48'
+
+dataID = '2024-12-02___14_24_31'
+#dataID = '2024-12-02___14_24_38'
+#dataID = '2024-12-02___14_24_43'
+#dataID = '2024-12-02___14_24_51'
 
 dataPath = './data/windows_traces/'
+
+#dataPath= 'E:/git/1/TobiiIntegration/EyeTracker/build/Recordings/'
 
 dataPath = dataPath + dataID + '/'
 #initialize filter parameterts with the ones in ft_user.ini
@@ -28,20 +32,20 @@ t_predicted = t_predicted - time_origin
 predicted = [x_predicted, y_predicted, z_predicted]
 
 if (llsFilterParameters.filterType == FilterType.WeavingPoseFilter):
-    data = pd.read_csv(dataPath + dataID + '_predictedWeaving.csv')
+    data = pd.read_csv(dataPath + dataID + '_filter_data_weaving.csv')
 else:
-    data = pd.read_csv(dataPath + dataID + '_predicted.csv')
-t_predicted_etr = data['timeLogged']
+    data = pd.read_csv(dataPath + dataID + '_filter_data_lookaroud.csv')
+t_predicted_etr = data['current_time']
 #t_predicted_etr = data[' usedInterpolatedTime']
 #Debugging
-t_mostRecent_etr = data[' mostRecentObservationTime']
-delay_capture_logged = t_predicted_etr - t_mostRecent_etr
+
+t_predicted_etr = t_predicted_etr + llsFilterParameters.predictionTime
 
 t_predicted_etr = t_predicted_etr - time_origin
 
-x_predicted_etr = 0.5 * (data[' leftEye.x'] + data[' rightEye.x'])
-y_predicted_etr = 0.5 * (data[' leftEye.y'] + data[' rightEye.y'])
-z_predicted_etr = 0.5 * (data[' leftEye.z'] + data[' rightEye.z'])
+x_predicted_etr = data['predicted_x']
+y_predicted_etr = data['predicted_y']
+z_predicted_etr = data['predicted_z']
 predicted_etr = [x_predicted_etr, y_predicted_etr, z_predicted_etr]
 
 #debug data
@@ -49,7 +53,6 @@ currentTime, lastDataTimestamps = llsfilter.simulatorDebugData(dataPath=dataPath
 delay_capture_current = currentTime - lastDataTimestamps
 currentTime = currentTime - time_origin
 
-print(np.average(delay_capture_logged))
 
 for i in range(0, 3):
     plt.subplot(5, 1, i + 3)
@@ -61,7 +64,6 @@ for i in range(0, 3):
     plt.xlabel("time, s")
 
 plt.subplot(5, 1, 1)
-plt.plot(t_predicted_etr, delay_capture_logged, '-o')
 plt.plot(currentTime, delay_capture_current, '-o')
 
 plt.subplot(5,1,2)
@@ -70,3 +72,5 @@ plt.plot(np.diff(currentTime), '-o')
 plt.show()
 
 print('Average delay_capture_current', np.average(delay_capture_current))
+
+print('Total latency = ', np.average(delay_capture_current) + llsFilterParameters.predictionTime)
