@@ -6,6 +6,10 @@ from importCalibration import cameraIntrinsics, Extrinsics, stereoCameraCalibrat
 from enum import Enum
 import matplotlib.pyplot as plt
 
+class RawDataType(Enum):
+    WINDOWS = 0
+    ANDROID = 1
+
 class FilterType(Enum):
     WeavingPoseFilter = 0
     LookaroundFilter = 1
@@ -13,9 +17,10 @@ class FilterType(Enum):
     PolynomialFit = 4
 
 class PolynomialFilterParameters:
-    def __init__(self, polynomialOrder = None, n_buffers = None):
+    def __init__(self, polynomialOrder = None, n_buffers = None, filterInAngualarSpace = None):
         self.polynomialOrder = polynomialOrder if polynomialOrder is not None else 2
         self.n_buffers = n_buffers if n_buffers is not None else np.array([3, 3, 3])
+        self.filterInAngualarSpace = filterInAngualarSpace if filterInAngualarSpace is not None else False
 
 class Output:
     def __init__(self):
@@ -777,6 +782,11 @@ class LLSfilter:
             h_y.append(history[i].y)
             h_z.append(history[i].z)
 
+        if self.filterParameters.polynomialFilterParameters.filterInAngualarSpace == True:
+            #print('x ', x , ' y ', y, ' z ', z )
+            h_x = np.divide(h_x, h_z)
+            h_y = np.divide(h_y, h_z)
+
         t_x = h_t[-self.filterParameters.polynomialFilterParameters.n_buffers[0]:]
         x = h_x[-self.filterParameters.polynomialFilterParameters.n_buffers[0]:]
         t_y = h_t[-self.filterParameters.polynomialFilterParameters.n_buffers[1]:]
@@ -805,6 +815,10 @@ class LLSfilter:
             x_est = x_est + p_x[j] * np.power(t_est - origin, self.filterParameters.polynomialFilterParameters.polynomialOrder - j)
             y_est = y_est + p_y[j] * np.power(t_est - origin, self.filterParameters.polynomialFilterParameters.polynomialOrder - j)
             z_est = z_est + p_z[j] * np.power(t_est - origin, self.filterParameters.polynomialFilterParameters.polynomialOrder - j)
+
+        if self.filterParameters.polynomialFilterParameters.filterInAngualarSpace == True:
+            x_est = x_est * z[-1]
+            y_est = y_est * z[-1]
 
         output.predicted_t.append(t_est)
 
