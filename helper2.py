@@ -43,12 +43,15 @@ def extract_noise_2(signal, time, windowSize = 5, polynomialOrder = 2):
     # of the window is estimated by calculating polynom value at that point.
     filtered_signal = []
     filtered_time = []
+
+    origin = time[0]
+    time = time - origin # Shift to origin for better numerical conditioning
     for i in range(0, len(signal) - windowSize + 1):
         t = time[i:i + windowSize]
         x = signal[i:i + windowSize]
         p = np.polyfit(t, x, polynomialOrder)
 
-        t_est = t[i + (windowSize - 1)/2]
+        t_est = t[int((windowSize - 1)/2)]
         x_est = 0
         for j in range(0, polynomialOrder + 1):
             x_est = x_est + p[j] * np.power(t_est, polynomialOrder - j)
@@ -57,6 +60,8 @@ def extract_noise_2(signal, time, windowSize = 5, polynomialOrder = 2):
         filtered_signal = np.append(filtered_signal, x_est)
 
     filtered_noise = signal[int((windowSize - 1) / 2):int(len(signal) - (windowSize - 1) / 2)] - filtered_signal
+
+    filtered_time = filtered_time + origin
     return filtered_time, filtered_signal, filtered_noise
 
 def calculate_delay_error(raw_t, raw_signal, predictionTime = 0.1):
