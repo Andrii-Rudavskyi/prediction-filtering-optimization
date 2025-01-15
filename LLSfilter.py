@@ -5,6 +5,7 @@ import configparser
 from importCalibration import cameraIntrinsics, Extrinsics, stereoCameraCalibrationData, importCalibration
 from enum import Enum
 import matplotlib.pyplot as plt
+from helper2 import extract_noise_2
 
 class RawDataType(Enum):
     WINDOWS = 0
@@ -194,7 +195,8 @@ class LLSFilterParameters:
                  noiseRejectionThreshold_cm = None,
                  noiseRejectionThresholdSpeedRange_cm_s = None,
                  noiseRejectionThresholdAlpha = None,
-                 polynomialFilterParameters = None
+                 polynomialFilterParameters = None,
+                 smoothenInput = None
                  ):
         self.cameraLatency_s = cameraLatency_s if cameraLatency_s is not None else 0.02436
         self.maxSizeHistory = maxSizeHistory if maxSizeHistory is not None else np.array([4, 6, 12])
@@ -217,6 +219,7 @@ class LLSFilterParameters:
         self.noiseRejectionThresholdSpeedRange_cm_s = noiseRejectionThresholdSpeedRange_cm_s if noiseRejectionThresholdSpeedRange_cm_s is not None else np.array([5, 5, 5])
         self.noiseRejectionThresholdAlpha = noiseRejectionThresholdAlpha if noiseRejectionThresholdAlpha is not None else np.array([0.01, 0.01, 0.01])
         self.polynomialFilterParameters = polynomialFilterParameters if polynomialFilterParameters is not None else PolynomialFilterParameters()
+        self.smoothenInput = smoothenInput if smoothenInput is not None else False
         if (self.useFixedZ):
             print("fixedZ", self.fixedZ)
         if (len(self.dataPath) > 0):
@@ -587,6 +590,15 @@ class LLSfilter:
                 z.append(filterData['latest_z'][j])
                 t.append(newDataPointTimestamp)
 
+        if self.filterParameters.smoothenInput == True:
+            filtered_time_x, filtered_signal_x, filtered_noise_x = extract_noise_2(x, t)
+            filtered_time_y, filtered_signal_y, filtered_noise_y = extract_noise_2(y, t)
+            filtered_time_z, filtered_signal_z, filtered_noise_z = extract_noise_2(z, t)
+            t = filtered_time_x
+            x = filtered_signal_x
+            y = filtered_signal_y
+            z = filtered_signal_z
+
         return t, x, y, z
 
     def simulatorDebugData(self, dataPath):
@@ -853,11 +865,24 @@ class LLSfilter:
                     filterData = pd.read_csv(dataPath + file)
 
 
+        if self.filterParameters.smoothenInput == True:
+            t_smoothened, x_smoothened, y_smoothened, z_smoothened = self.retrieveRawData(self.filterParameters.dataPath)
+
+
+
         newDataPointTimestamp = filterData['latest_time'][0]
         x = filterData['latest_x'][0]
         y = filterData['latest_y'][0]
         z = filterData['latest_z'][0]
         t = newDataPointTimestamp
+
+        if self.filterParameters.smoothenInput == True:
+            index = np.where(t_smoothened == newDataPointTimestamp)
+            index = index[0]
+            if (len(index) > 0):
+                x = x_smoothened[index[0]]
+                y = y_smoothened[index[0]]
+                z = z_smoothened[index[0]]
 
         history.append(SR_vector4d(x=x, y=y, z=z, t=t))
 
@@ -869,6 +894,17 @@ class LLSfilter:
                 y = filterData['latest_y'][j]
                 z = filterData['latest_z'][j]
                 t = newDataPointTimestamp
+
+                if self.filterParameters.smoothenInput == True:
+                    index = np.where(t_smoothened == newDataPointTimestamp)
+                    index = index[0]
+
+                    if (len(index) > 0):
+                        x = x_smoothened[index[0]]
+                        y = y_smoothened[index[0]]
+                        z = z_smoothened[index[0]]
+                        #print(index[0], x,y, z)
+
 
                 if (len(history) >= maxHistorySize):
                     del history[0]
