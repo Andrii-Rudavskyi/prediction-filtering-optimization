@@ -1,0 +1,7 @@
+%YAML:1.0
+---
+imageWidth: 640
+imageHeight: 480
+cameraIdentifier1: "file://E:/Workspace_Andrii/EyeTracker testing/SR Eye Tracker/bin/data/2024-12-18___16_10_17/2024-12-18___16_10_17_video.avi_L"
+cameraIdentifier2: "file://E:/Workspace_Andrii/EyeTracker testing/SR Eye Tracker/bin/data/2024-12-18___16_10_17/2024-12-18___16_10_17_video.avi_R"
+singleCamera:false
