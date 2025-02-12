@@ -7,7 +7,7 @@ from enum import Enum
 import matplotlib.pyplot as plt
 from helper2 import extract_noise_2
 from Triangulation import Triangulation
-from StereoEyePositionFilter import StereoEyePositionFilter
+from StereoEyePositionFilter import StereoEyePositionFilter, Point2D
 
 class RawDataType(Enum):
     WINDOWS = 0
@@ -395,7 +395,7 @@ class LLSFilterParameters:
             print("polynomialOrder: ", self.polynomialFilterParameters.polynomialOrder)
 
 class LLSfilter:
-    def __init__(self, filterParameters = LLSFilterParameters(), calibrationData = stereoCameraCalibrationData(), debuPlots = False):
+    def __init__(self, dataPath = None, filterParameters = LLSFilterParameters(), calibrationData = stereoCameraCalibrationData(), debuPlots = False):
         self.filterParameters = filterParameters
         self.calibrationData = calibrationData
         self.speedLimitFilter = SpeedLimitFilter(speedLimit_cm_s=SR_vector3d(x=self.filterParameters.speedLimit_cm_s[0],
@@ -408,7 +408,9 @@ class LLSfilter:
                                                                                              noiseRejectionThreshold=SR_vector3d(x=self.filterParameters.noiseRejectionThreshold_cm[0], y=self.filterParameters.noiseRejectionThreshold_cm[1], z=self.filterParameters.noiseRejectionThreshold_cm[2]),
                                                                                              noiseRejectionThresholdSpeedRange=SR_vector3d(x=self.filterParameters.noiseRejectionThresholdSpeedRange_cm_s[0], y=self.filterParameters.noiseRejectionThresholdSpeedRange_cm_s[1], z=self.filterParameters.noiseRejectionThresholdSpeedRange_cm_s[2]),
                                                                                              noiseRejectionThresholdAlpha=SR_vector3d(x=self.filterParameters.noiseRejectionThresholdAlpha[0], y=self.filterParameters.noiseRejectionThresholdAlpha[1], z=self.filterParameters.noiseRejectionThresholdAlpha[2])))
+        self.stereoFilter = StereoEyePositionFilter(filter2D=True)
         self.debugPlots = debuPlots
+        self.triangulation = Triangulation(dataPath + 'resources')
 
     def LLS2(self, xvals, yvals, xpredict):
         XSx = 0
@@ -572,6 +574,48 @@ class LLSfilter:
 
         return outputData
 
+    def __retrieve_raw_data_windows(self, eye_coordinates: pd.DataFrame, raw_filter_data: pd.DataFrame):
+        df = pd.DataFrame({'current_time': [],
+                           'latest_time': [],
+                           'frameNumber': [],
+                           'cam1_left_x_2d': [],
+                           'cam1_left_y_2d': [],
+                           'cam1_right_x_2d': [],
+                           'cam1_right_y_2d': [],
+                           'cam2_left_x_2d': [],
+                           'cam2_left_y_2d': [],
+                           'cam2_right_x_2d': [],
+                           'cam2_right_y_2d': []
+                           })
+        capture_time = eye_coordinates['CaptureTime']
+        current_time = raw_filter_data['current_time']
+        latest_time = raw_filter_data['latest_time']
+        new_data = latest_time[0]
+        new_index = None
+        for i in range(1, len(latest_time)):
+            if latest_time[i] > new_data:
+                new_data = latest_time[i]
+                # print('new_data = latest_time[i]', new_data)
+                index = capture_time[abs(capture_time - new_data - self.filterParameters.cameraLatency_s) < 0.0001].index
+                if len(index) > 0:
+                    new_index = index[0]
+                    # print(index[0])
+                    # print('eye_coordinates:', capture_time[index[0]], 'filter_data: ', new_data, 'diff: ', capture_time[index[0]] - new_data - cameraLatency_s)
+            if new_index is not None:
+                new_df = pd.DataFrame({'current_time': [current_time[i]],
+                                       'latest_time': [latest_time[i]],
+                                       'frameNumber': [eye_coordinates[' frameNumber'][new_index]],
+                                       'cam1_left_x_2d': [eye_coordinates[' Camera1Left2D.x'][new_index]],
+                                       'cam1_left_y_2d': [eye_coordinates[' Camera1Left2D.y'][new_index]],
+                                       'cam1_right_x_2d': [eye_coordinates[' Camera1Right2D.x'][new_index]],
+                                       'cam1_right_y_2d': [eye_coordinates[' Camera1Right2D.y'][new_index]],
+                                       'cam2_left_x_2d': [eye_coordinates[' Camera2Left2D.x'][new_index]],
+                                       'cam2_left_y_2d': [eye_coordinates[' Camera2Left2D.y'][new_index]],
+                                       'cam2_right_x_2d': [eye_coordinates[' Camera2Right2D.x'][new_index]],
+                                       'cam2_right_y_2d': [eye_coordinates[' Camera2Right2D.y'][new_index]]})
+                df = df.append(new_df, ignore_index=True)
+        return df
+
     def retrieveRawData(self, dataPath):
         x = []
         y = []
@@ -586,19 +630,66 @@ class LLSfilter:
                 if file.endswith('filter_data_lookaroud.csv'):
                     filterData = pd.read_csv(dataPath + file)
 
-        newDataPointTimestamp = filterData['latest_time'][0]
-        x.append(filterData['latest_x'][0])
-        y.append(filterData['latest_y'][0])
-        z.append(filterData['latest_z'][0])
+            if file.endswith('eyeCoordinates.csv'):
+                rawData = pd.read_csv(dataPath + file)
+
+        self.__raw_data = self.__retrieve_raw_data_windows(eye_coordinates=rawData, raw_filter_data=filterData)
+
+        cam1_left_x_2d = self.__raw_data['cam1_left_x_2d']
+        cam1_left_y_2d = self.__raw_data['cam1_left_y_2d']
+        cam1_right_x_2d = self.__raw_data['cam1_right_x_2d']
+        cam1_right_y_2d = self.__raw_data['cam1_right_y_2d']
+
+        cam2_left_x_2d = self.__raw_data['cam2_left_x_2d']
+        cam2_left_y_2d = self.__raw_data['cam2_left_y_2d']
+        cam2_right_x_2d = self.__raw_data['cam2_right_x_2d']
+        cam2_right_y_2d = self.__raw_data['cam2_right_y_2d']
+
+        newDataPointTimestamp = self.__raw_data['latest_time'][0]
+
+        leftEyes = [Point2D(x=cam1_left_x_2d[0], y=cam1_left_y_2d[0]), Point2D(x=cam2_left_x_2d[0], y=cam2_left_y_2d[0])]
+        rightEyes = [Point2D(x=cam1_right_x_2d[0], y=cam1_right_y_2d[0]), Point2D(x=cam2_right_x_2d[0], y=cam2_right_y_2d[0])]
+
+        # leftEyes, rightEyes = self.stereoFilter.filterEyes(frameNumber=self.__raw_data['frameNumber'][0],
+        #                                                                     captureTime=newDataPointTimestamp,
+        #                                                                     leftEyes=leftEyes, rightEyes=rightEyes)
+
+        # prepare left and right eyes for triangulation
+        points1 = np.array([[leftEyes[0].x, leftEyes[0].y],
+                            [rightEyes[0].x, rightEyes[0].y]], dtype=np.float64)
+        points2 = np.array([[leftEyes[1].x, leftEyes[1].y],
+                            [rightEyes[1].x, rightEyes[1].y]], dtype=np.float64)
+
+        # triangulate left and right eyes; rectification of the points is done inside of triangulation fucntion
+        xyz = self.triangulation.triangulate(points1, points2)
+        x.append(0.05 * (xyz[0][0] + xyz[1][0]))
+        y.append(0.05 * (xyz[0][1] + xyz[1][1]))
+        z.append(0.05 * (xyz[0][2] + xyz[1][2]))
 
         t.append(newDataPointTimestamp)
 
-        for j in range(1, len(filterData)):
-            if (filterData['latest_time'][j] > newDataPointTimestamp):
-                newDataPointTimestamp = filterData['latest_time'][j]
-                x.append(filterData['latest_x'][j])
-                y.append(filterData['latest_y'][j])
-                z.append(filterData['latest_z'][j])
+        for j in range(1, len(self.__raw_data)):
+            if (self.__raw_data['latest_time'][j] > newDataPointTimestamp):
+                newDataPointTimestamp = self.__raw_data['latest_time'][j]
+
+                leftEyes = [Point2D(x=cam1_left_x_2d[j], y=cam1_left_y_2d[j]),
+                            Point2D(x=cam2_left_x_2d[j], y=cam2_left_y_2d[j])]
+                rightEyes = [Point2D(x=cam1_right_x_2d[j], y=cam1_right_y_2d[j]),
+                             Point2D(x=cam2_right_x_2d[j], y=cam2_right_y_2d[j])]
+
+                # leftEyes, rightEyes = self.stereoFilter.filterEyes(frameNumber=self.__raw_data['frameNumber'][j],
+                #                                                    captureTime=newDataPointTimestamp,
+                #                                                    leftEyes=leftEyes, rightEyes=rightEyes)
+
+                points1 = np.array([[leftEyes[0].x, leftEyes[0].y],
+                                    [rightEyes[0].x, rightEyes[0].y]], dtype=np.float64)
+                points2 = np.array([[leftEyes[1].x, leftEyes[1].y],
+                                    [rightEyes[1].x, rightEyes[1].y]], dtype=np.float64)
+
+                xyz = self.triangulation.triangulate(points1, points2)
+                x.append(0.05 * (xyz[0][0] + xyz[1][0]))
+                y.append(0.05 * (xyz[0][1] + xyz[1][1]))
+                z.append(0.05 * (xyz[0][2] + xyz[1][2]))
                 t.append(newDataPointTimestamp)
 
         if self.filterParameters.smoothenInput == True:

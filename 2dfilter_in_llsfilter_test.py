@@ -2,11 +2,6 @@ from LLSfilter import LLSfilter, LLSFilterParameters, FilterType, PolynomialFilt
 import matplotlib.pyplot as plt
 import numpy as np
 from helper2 import extract_noise_2
-import os
-
-data_labels = ['0 cm/s, 0 lux', '150 cm/s, 0 lux', '250 cm/s, 0 lux', '350 cm/s, 0 lux',
-          '0 cm/s, 40 lux', '150 cm/s, 40 lux', '250 cm/s, 40 lux', '350 cm/s, 40 lux',
-          '0 cm/s, 90 lux', '150 cm/s, 90 lux', '250 cm/s, 90 lux', '350 cm/s, 90 lux']
 
 dataPath = './data/windows_traces/noise/'
 dataID = '2025-01-13___15_34_15'
@@ -16,7 +11,7 @@ n_avergaing = 200
 n_predicted_avergaing = 800
 
 llsFilterParameters = LLSFilterParameters(dataPath=dataPath, use2Dfiltering=True)
-llsfilter = LLSfilter(llsFilterParameters, debuPlots=False)
+llsfilter = LLSfilter(dataPath=dataPath, filterParameters=llsFilterParameters, debuPlots=False)
 
 noise_lims = [-100, 100]
 ave_noise_lims = [0, 20]
