@@ -6,6 +6,8 @@ from importCalibration import cameraIntrinsics, Extrinsics, stereoCameraCalibrat
 from enum import Enum
 import matplotlib.pyplot as plt
 from helper2 import extract_noise_2
+from Triangulation import Triangulation
+from StereoEyePositionFilter import StereoEyePositionFilter
 
 class RawDataType(Enum):
     WINDOWS = 0
@@ -82,13 +84,13 @@ class SpeedLimitFilter:
 
                 if (abs(v.x) > self.speedLimit_cm_s.x):
                     v.x = np.sign(v.x) * self.speedLimit_cm_s.x
-                    print("Speed limit filter working on X")
+                    #print("Speed limit filter working on X")
                 if (abs(v.y > self.speedLimit_cm_s.y)):
                     v.y = np.sign(v.y) * self.speedLimit_cm_s.y
-                    print("Speed limit filter working on Y")
+                    #print("Speed limit filter working on Y")
                 if (abs(v.z > self.speedLimit_cm_s.z)):
                     v.z = np.sign(v.z) * self.speedLimit_cm_s.z
-                    print("Speed limit filter working on Z")
+                    #print("Speed limit filter working on Z")
 
                 output.x = self.prevOutput.x + v.x * dt
                 output.y = self.prevOutput.y + v.y * dt
@@ -172,6 +174,9 @@ class NoiseRejectionFilter:
 
         self.prevOutput = output
 
+        # print('THREASHOLD: ', self.threshold.x, self.threshold.y, self.threshold.z,'\n')
+        # print('prevOutput: ', self.prevOutput.x, self.prevOutput.y, self.prevOutput.z, '\n')
+
         return output
 
 class LLSFilterParameters:
@@ -196,7 +201,8 @@ class LLSFilterParameters:
                  noiseRejectionThresholdSpeedRange_cm_s = None,
                  noiseRejectionThresholdAlpha = None,
                  polynomialFilterParameters = None,
-                 smoothenInput = None
+                 smoothenInput = None,
+                 use2Dfiltering = None
                  ):
         self.cameraLatency_s = cameraLatency_s if cameraLatency_s is not None else 0.02436
         self.maxSizeHistory = maxSizeHistory if maxSizeHistory is not None else np.array([4, 6, 12])
@@ -220,6 +226,7 @@ class LLSFilterParameters:
         self.noiseRejectionThresholdAlpha = noiseRejectionThresholdAlpha if noiseRejectionThresholdAlpha is not None else np.array([0.01, 0.01, 0.01])
         self.polynomialFilterParameters = polynomialFilterParameters if polynomialFilterParameters is not None else PolynomialFilterParameters()
         self.smoothenInput = smoothenInput if smoothenInput is not None else False
+        self.use2Dfiltering = use2Dfiltering if use2Dfiltering is not None else False
         if (self.useFixedZ):
             print("fixedZ", self.fixedZ)
         if (len(self.dataPath) > 0):
@@ -245,6 +252,9 @@ class LLSFilterParameters:
                     self.predictionTime = config.getfloat('ApplicationParameters', 'predictionTimeScene_s')
             else:
                 print('predictionTime: ', self.predictionTime)
+
+            if self.use2Dfiltering:
+                self.stereoFilter = StereoEyePositionFilter(filter2D=True)
 
             sectionName = None
             if (filterType == FilterType.WeavingPoseFilter):
@@ -580,6 +590,7 @@ class LLSfilter:
         x.append(filterData['latest_x'][0])
         y.append(filterData['latest_y'][0])
         z.append(filterData['latest_z'][0])
+
         t.append(newDataPointTimestamp)
 
         for j in range(1, len(filterData)):
