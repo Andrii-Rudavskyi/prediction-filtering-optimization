@@ -1,27 +1,37 @@
 from LLSfilter import LLSfilter, LLSFilterParameters, FilterType, PolynomialFilterParameters, calculate_prediction_error
 import matplotlib.pyplot as plt
 import numpy as np
+from StereoEyePositionFilter import StereoFilterParameters
 
 dataID = '2024-12-02___14_24_31'
 #dataID = '2024-12-02___14_24_38'
 #dataID = '2024-12-02___14_24_43'
 #dataID = '2024-12-02___14_24_51'
 
+#dataID = '10-12-2024-16-56-01'
+
+#dataID = '2024-12-18___16_08_42'
+#dataID = '2024-12-18___16_09_39'
+#dataID = '2024-12-18___16_10_17'
+#dataID = '2024-12-18___16_10_59'
+
 dataPath = './data/windows_traces/'
+#dataPath = './data/android_traces/'
 dataPath = dataPath + dataID + '/'
 
 #-----------------Filter 1-------------------------------------------------------
-llsFilterParameters1 = LLSFilterParameters(dataPath=dataPath, filterType=FilterType.WeavingPoseFilter, usePrediction=True)
-llsfilter1 = LLSfilter(llsFilterParameters1, debuPlots=False)
+stereoFilterParameters = StereoFilterParameters(filter2D=True)
+llsFilterParameters1 = LLSFilterParameters(dataPath=dataPath)
+llsfilter1 = LLSfilter(dataPath=dataPath, llsFilterParameters=llsFilterParameters1, stereoFilterParameters=stereoFilterParameters, debuPlots=False)
 
-t, x, y, z = llsfilter1.retrieveRawData(dataPath=dataPath)
+t, x, y, z = llsfilter1.retrieveRawData(dataPath=dataPath, apply2Dfilter=False)
 time_origin = t[0]
 t = t - time_origin
 raw = [x, y, z]
 
 label = ["x", "y", "z"]
 
-t_predicted, x_predicted, y_predicted, z_predicted = llsfilter1.outputThread(dataPath=dataPath)
+t_predicted, x_predicted, y_predicted, z_predicted = llsfilter1.run_simulation(dataPath=dataPath)
 t_predicted = t_predicted - time_origin
 predicted_filter_1 = [x_predicted, y_predicted, z_predicted]
 
@@ -33,10 +43,11 @@ error_filter_1 = [predicted_error_x, predicted_error_y, predicted_error_z]
 #---------------------------------------------------------------------------------
 
 # Filter 2------------------------------------------------------------------------
-llsFilterParameters2 = LLSFilterParameters(dataPath=dataPath, filterType=FilterType.PolynomialFit, predictionTime=0.04, usePrediction=True, polynomialFilterParameters=PolynomialFilterParameters(n_buffers=np.array([4, 6, 12]), polynomialOrder=2))
-llsfilter2 = LLSfilter(llsFilterParameters2, debuPlots=False)
+stereoFilterParameters = StereoFilterParameters(filter2D=False)
+llsFilterParameters2 = LLSFilterParameters(dataPath=dataPath)
+llsfilter2 = LLSfilter(dataPath=dataPath, llsFilterParameters=llsFilterParameters2, stereoFilterParameters=stereoFilterParameters, debuPlots=False)
 
-t_predicted, x_predicted, y_predicted, z_predicted = llsfilter2.outputThread(dataPath=dataPath)
+t_predicted, x_predicted, y_predicted, z_predicted = llsfilter2.run_simulation(dataPath=dataPath)
 t_predicted = t_predicted - time_origin
 predicted_filter_2 = [x_predicted, y_predicted, z_predicted]
 
