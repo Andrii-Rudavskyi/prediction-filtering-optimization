@@ -1,5 +1,5 @@
 import pandas as pd
-from StereoEyePositionFilter import StereoEyePositionFilter, Point2D
+from StereoEyePositionFilter import StereoEyePositionFilter, Point2D, StereoFilterParameters
 
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,9 @@ rightEyes_1_y_2Dfiltered = data['rightEyes[1].y.2d']
 
 leftEyes_0_x_2Dfiltered_simulated = []
 
-stereoFilter = StereoEyePositionFilter(filter2D=True)
+stereoFilterParameters = StereoFilterParameters()
+stereoFilter = StereoEyePositionFilter(stereoFilterParameters=stereoFilterParameters)
+
 
 for i in range(0, len(leftEyes_0_x)):
     leftEyes = [Point2D(x=leftEyes_0_x[i], y=leftEyes_0_y[i]), Point2D(x=leftEyes_1_x[i], y=leftEyes_1_y[i])]
