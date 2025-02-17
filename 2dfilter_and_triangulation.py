@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from StereoEyePositionFilter import StereoEyePositionFilter, Point2D
+
+from StereoEyePositionFilter import StereoEyePositionFilter, Point2D, StereoFilterParameters
 from Triangulation import Triangulation
 
 import matplotlib.pyplot as plt
@@ -41,7 +42,9 @@ left_x3D_2D_filtered = []
 left_y3D_2D_filtered = []
 
 #initialize 2D filter
-stereoFilter = StereoEyePositionFilter('./data/windows_traces/2024-12-02___14_24_31/resources')
+
+stereoFilterParameters = StereoFilterParameters('./data/windows_traces/2024-12-02___14_24_31', filter2D=True)
+stereoFilter = StereoEyePositionFilter(stereoFilterParameters=stereoFilterParameters)
 
 for i in range(0, len(leftEyes_0_x)):
     leftEyes = [Point2D(x=leftEyes_0_x[i], y=leftEyes_0_y[i]), Point2D(x=leftEyes_1_x[i], y=leftEyes_1_y[i])]
