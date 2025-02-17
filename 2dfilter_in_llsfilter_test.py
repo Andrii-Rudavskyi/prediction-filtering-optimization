@@ -1,4 +1,5 @@
 from LLSfilter import LLSfilter, LLSFilterParameters, FilterType, PolynomialFilterParameters, calculate_prediction_error
+from StereoEyePositionFilter import StereoFilterParameters
 import matplotlib.pyplot as plt
 import numpy as np
 from helper2 import extract_noise_2
@@ -10,13 +11,14 @@ dataPath = dataPath + dataID + '/'
 n_avergaing = 200
 n_predicted_avergaing = 800
 
-llsFilterParameters = LLSFilterParameters(dataPath=dataPath, use2Dfiltering=True)
-llsfilter = LLSfilter(dataPath=dataPath, filterParameters=llsFilterParameters, debuPlots=False)
+llsFilterParameters = LLSFilterParameters(dataPath=dataPath)
+stereoFilterParameters = StereoFilterParameters()
+llsfilter = LLSfilter(dataPath=dataPath, llsFilterParameters=llsFilterParameters, stereoFilterParameters=stereoFilterParameters, debuPlots=False)
 
 noise_lims = [-100, 100]
 ave_noise_lims = [0, 20]
 
-t, x, y, z = llsfilter.retrieveRawData(dataPath=dataPath)
+t, x, y, z = llsfilter.retrieveRawData(dataPath=dataPath, apply2Dfilter=False)
 time_origin = t[0]
 t = [ti - time_origin for ti in t]
 
@@ -24,7 +26,7 @@ x = [xi * 10 for xi in x]
 
 filtered_time_x, filtered_signal_x, filtered_noise_x = extract_noise_2(x, t, windowSize=21, polynomialOrder=5)
 
-t_predicted, x_predicted, y_predicted, z_predicted = llsfilter.outputThread(dataPath=dataPath)
+t_predicted, x_predicted, y_predicted, z_predicted = llsfilter.run_simulation(dataPath=dataPath)
 t_predicted = t_predicted - time_origin
 x_predicted = [xi * 10 for xi in x_predicted] #convert to mm
 filtered_predicted_time_x, filtered_predicted_signal_x, filtered_predicted_noise_x = extract_noise_2(x_predicted, t_predicted, windowSize=81, polynomialOrder=5)
