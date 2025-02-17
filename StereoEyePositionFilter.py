@@ -7,21 +7,16 @@ class Point2D:
         self.x = x
         self.y = y
 
-class StereoEyePositionFilter:
+class StereoFilterParameters:
     def __init__(self, resourcesPath=None, filter2D=None, fitOrder=None, bufferSize=None, filterMethod=None, loggingEnabled=None, diff_threshold=None, selection_hysteresis=None):
         self.resourcesPath = resourcesPath
-        self.filter2D = filter2D if filter2D is not None else False
+        self.filter2D = filter2D if filter2D is not None else True
         self.fitOrder = fitOrder if fitOrder is not None else 1
         self.bufferSize = bufferSize if bufferSize is not None else 12
         self.filterMethod = filterMethod if filterMethod is not None else 3
         self.loggingEnabled = loggingEnabled if loggingEnabled is not None else False
-        self.diff_threshold = diff_threshold if diff_threshold is not None else 10
+        self.diff_threshold = diff_threshold if diff_threshold is not None else 5
         self.selection_hysteresis = selection_hysteresis if selection_hysteresis is not None else 10
-
-        self.frameNumbers = []
-        self.leftCam = []
-        self.rightCam = []
-        self.select = []
 
         if resourcesPath is not None and os.path.exists(resourcesPath + '/ft_user.ini'):
             print('Parsing parameters from:' + resourcesPath + '/ft_user.ini')
@@ -31,14 +26,22 @@ class StereoEyePositionFilter:
 
             config.read(resourcesPath + '/ft_user.ini')
             config.sections()
-            self.filter2D = config.getboolean('EyeStabilizationParams', 'use2Dfiltering')
-            self.fitOrder = config.getint('EyeStabilizationParams', 'fitOrder')
-            self.bufferSize = config.getint('EyeStabilizationParams', 'bufferSize')
-            self.filterMethod = config.getint('EyeStabilizationParams', 'filterMethod')
-            self.loggingEnabled = config.getboolean('EyeStabilizationParams', 'enableLogging')
-            self.selection_hysteresis = config.getint('EyeStabilizationParams', 'selection_hysteresis')
-            self.diff_threshold = config.getint('EyeStabilizationParams', 'diff_threshold')
+            if filter2D is None:
+                self.filter2D = config.getboolean('EyeStabilizationParams', 'use2Dfiltering')
+            if fitOrder is None:
+                self.fitOrder = config.getint('EyeStabilizationParams', 'fitOrder')
+            if bufferSize in None:
+                self.bufferSize = config.getint('EyeStabilizationParams', 'bufferSize')
+            if filterMethod is None:
+                self.filterMethod = config.getint('EyeStabilizationParams', 'filterMethod')
+            if loggingEnabled is None:
+                self.loggingEnabled = config.getboolean('EyeStabilizationParams', 'enableLogging')
+            if selection_hysteresis is None:
+                self.selection_hysteresis = config.getint('EyeStabilizationParams', 'selection_hysteresis')
+            if diff_threshold is None:
+                self.diff_threshold = config.getint('EyeStabilizationParams', 'diff_threshold')
 
+    def print_parameters(self):
         print('2D filter parameters:')
         print('filter2D:  ', self.filter2D)
         print('fitOrder: ', self.fitOrder)
@@ -47,6 +50,16 @@ class StereoEyePositionFilter:
         print('loggingEnabled: ', self.loggingEnabled)
         print('diff_threshold: ', self.diff_threshold)
         print('selection_hysteresis: ', self.selection_hysteresis)
+
+class StereoEyePositionFilter:
+    def __init__(self, stereoFilterParameters = StereoFilterParameters()):
+        self.stereoFilterParameters = stereoFilterParameters
+        self.stereoFilterParameters.print_parameters()
+
+        self.frameNumbers = []
+        self.leftCam = []
+        self.rightCam = []
+        self.select = []
 
     def filterMethod2(self, left_eyes, right_eyes, order):
         if len(self.frameNumbers) <= 4 + order + 2:
@@ -151,11 +164,11 @@ class StereoEyePositionFilter:
         one = Point2D(x=1, y=1)
 
         new_select = Point2D()
-        new_select.x = min(1, max(0, avg_abserr_x / self.diff_threshold))
-        new_select.y = min(1, max(0, avg_abserr_y / self.diff_threshold))
+        new_select.x = min(1, max(0, avg_abserr_x / self.stereoFilterParameters.diff_threshold))
+        new_select.y = min(1, max(0, avg_abserr_y / self.stereoFilterParameters.diff_threshold))
 
         self.select.append(new_select)
-        if (len(self.select) > self.selection_hysteresis):
+        if (len(self.select) > self.stereoFilterParameters.selection_hysteresis):
             self.select.pop(0)
 
         f = Point2D(x=0, y=0)
@@ -180,7 +193,7 @@ class StereoEyePositionFilter:
 
     def filterEyes(self, frameNumber, captureTime, leftEyes = [Point2D(), Point2D()], rightEyes = [Point2D(), Point2D()]):
 
-        if self.filter2D is False:
+        if self.stereoFilterParameters.filter2D is False:
             return leftEyes, rightEyes
 
         currentFrame = 0
@@ -195,17 +208,17 @@ class StereoEyePositionFilter:
         self.leftCam.append(left_cam)
         self.rightCam.append(right_cam)
 
-        if len(self.leftCam) > self.bufferSize:
+        if len(self.leftCam) > self.stereoFilterParameters.bufferSize:
             self.leftCam.pop(0)
 
-        if len(self.rightCam) > self.bufferSize:
+        if len(self.rightCam) > self.stereoFilterParameters.bufferSize:
             self.rightCam.pop(0)
-        if len(self.frameNumbers) > self.bufferSize:
+        if len(self.frameNumbers) > self.stereoFilterParameters.bufferSize:
             self.frameNumbers.pop(0)
 
-        if self.filterMethod == 2:
-            leftEyes, rightEyes = self.filterMethod2(left_eyes=leftEyes, right_eyes=rightEyes, order=self.fitOrder)
-        elif self.filterMethod == 3:
+        if self.stereoFilterParameters.filterMethod == 2:
+            leftEyes, rightEyes = self.filterMethod2(left_eyes=leftEyes, right_eyes=rightEyes, order=self.stereoFilterParameters.fitOrder)
+        elif self.stereoFilterParameters.filterMethod == 3:
             leftEyes, rightEyes = self.filterMethod3(leftEyes=leftEyes, rightEyes=rightEyes)
 
         return leftEyes, rightEyes
